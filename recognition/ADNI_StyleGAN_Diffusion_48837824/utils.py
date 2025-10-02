@@ -19,6 +19,9 @@ LOG_RESOLUTION = 7 #2^7: 128*128
 Z_DIM = 256
 W_DIM = 256
 LAMBDA_GP = 10
+NUM_WORKERS = 4
+RANDOM_SEED = 42
+VAL_SPLIT = 0.1 
 
 mapping_network = MappingNetwork(Z_DIM, W_DIM).to(DEVICE)
 

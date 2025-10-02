@@ -1,0 +1,61 @@
+import torch
+from torch.utils.data import DataLoader, random_split
+from torchvision import datasets, transforms
+import os
+
+from utils import DEVICE, BATCH_SIZE, LOG_RESOLUTION, NUM_WORKERS, DATASET, RANDOM_SEED, VAL_SPLIT
+
+"""
+dataset.py
+Dataset loading and preprocessing
+"""
+
+DATASET_DIR = DATASET
+IMAGE_SIZE = 2 ** LOG_RESOLUTION  
+
+train_transform = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize([0.5], [0.5]),  # Scale to [-1, 1] for GAN
+])
+
+val_transform = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.5], [0.5]),
+])
+
+def get_dataloaders(dataset_dir=DATASET_DIR, batch_size=BATCH_SIZE, val_split=VAL_SPLIT):
+    # Load full dataset using ImageFolder
+    full_dataset = datasets.ImageFolder(root=dataset_dir, transform=train_transform)
+
+    # Compute lengths for train/val split
+    val_len = int(len(full_dataset) * val_split)
+    train_len = len(full_dataset) - val_len
+
+    # Fix seed for reproducibility
+    generator = torch.Generator().manual_seed(RANDOM_SEED)
+    train_dataset, val_dataset = random_split(full_dataset, [train_len, val_len], generator=generator)
+
+    # Replace validation transforms
+    val_dataset.dataset.transform = val_transform
+
+    # Create DataLoaders
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=NUM_WORKERS, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS, pin_memory=True)
+
+    return train_loader, val_loader
+
+'''
+if __name__ == "__main__":
+    train_loader, val_loader = get_dataloaders()
+    print("Train batches:", len(train_loader))
+    print("Validation batches:", len(val_loader))
+
+    # Inspect one batch
+    for imgs, labels in train_loader:
+        print("Images batch shape:", imgs.shape)  # [B, C, H, W]
+        print("Labels batch shape:", labels.shape)
+        break
+'''
