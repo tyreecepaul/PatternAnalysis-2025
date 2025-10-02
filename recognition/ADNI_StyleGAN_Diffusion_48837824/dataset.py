@@ -9,9 +9,11 @@ dataset.py
 Dataset loading and preprocessing
 """
 
+# Hyperparameters
 DATASET_DIR = DATASET
 IMAGE_SIZE = 2 ** LOG_RESOLUTION  
 
+# Data augmentation and normalization for training
 train_transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.RandomHorizontalFlip(),
@@ -19,6 +21,7 @@ train_transform = transforms.Compose([
     transforms.Normalize([0.5], [0.5]),  # Scale to [-1, 1] for GAN
 ])
 
+# Data augmentation and normalization for validation
 val_transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.ToTensor(),
@@ -26,6 +29,17 @@ val_transform = transforms.Compose([
 ])
 
 def get_dataloaders(dataset_dir=DATASET_DIR, batch_size=BATCH_SIZE, val_split=VAL_SPLIT):
+    """
+    Create training and validation DataLoaders with optimizations.
+    Args:
+        dataset_dir (str): Path to the dataset directory.
+        batch_size (int): Batch size for DataLoaders.
+        val_split (float): Fraction of data to use for validation.
+    Returns:
+        train_loader (DataLoader): DataLoader for training set.
+        val_loader (DataLoader): DataLoader for validation set.
+    """
+
     # Load full dataset using ImageFolder
     full_dataset = datasets.ImageFolder(root=dataset_dir, transform=train_transform)
 
@@ -40,21 +54,24 @@ def get_dataloaders(dataset_dir=DATASET_DIR, batch_size=BATCH_SIZE, val_split=VA
     # Replace validation transforms
     val_dataset.dataset.transform = val_transform
 
-    # Create DataLoaders
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=NUM_WORKERS, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=NUM_WORKERS, pin_memory=True)
+    # Create DataLoaders with optimizations
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        num_workers=NUM_WORKERS, 
+        pin_memory=True,
+        persistent_workers=True if NUM_WORKERS > 0 else False,
+        prefetch_factor=2 if NUM_WORKERS > 0 else None
+    )
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=batch_size, 
+        shuffle=False, 
+        num_workers=NUM_WORKERS, 
+        pin_memory=True,
+        persistent_workers=True if NUM_WORKERS > 0 else False,
+        prefetch_factor=2 if NUM_WORKERS > 0 else None
+    )
 
     return train_loader, val_loader
-
-'''
-if __name__ == "__main__":
-    train_loader, val_loader = get_dataloaders()
-    print("Train batches:", len(train_loader))
-    print("Validation batches:", len(val_loader))
-
-    # Inspect one batch
-    for imgs, labels in train_loader:
-        print("Images batch shape:", imgs.shape)  # [B, C, H, W]
-        print("Labels batch shape:", labels.shape)
-        break
-'''

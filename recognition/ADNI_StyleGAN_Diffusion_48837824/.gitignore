@@ -1,2 +1,5 @@
 .vscode/
 ADNI/
+saved_examples/
+__pycache__/
+*.pth
