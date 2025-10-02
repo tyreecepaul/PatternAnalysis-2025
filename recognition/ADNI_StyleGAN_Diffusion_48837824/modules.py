@@ -47,7 +47,7 @@ class StyleBlock(nn.Module):
     def __init__(self, w_dim, in_channels, out_channels):
         super().__init__()
         self.conv = Conv2dWeightModulate(in_channels, out_channels, kernel_size=3)
-        self.to_style = EqualizedLinear(w_dim, out_channels)
+        self.to_style = EqualizedLinear(w_dim, in_channels)  # Should match input channels for weight modulation
         self.bias = nn.Parameter(torch.zeros(out_channels))
         self.noise_scale = nn.Parameter(torch.zeros(1))
         self.activation = nn.LeakyReLU(0.2, inplace=True)

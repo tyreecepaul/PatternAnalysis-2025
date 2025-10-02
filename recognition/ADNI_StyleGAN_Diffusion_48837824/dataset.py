@@ -1,9 +1,8 @@
 import torch
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
-import os
 
-from utils import DEVICE, BATCH_SIZE, LOG_RESOLUTION, NUM_WORKERS, DATASET, RANDOM_SEED, VAL_SPLIT
+from utils import BATCH_SIZE, LOG_RESOLUTION, NUM_WORKERS, DATASET, RANDOM_SEED, VAL_SPLIT
 
 """
 dataset.py
