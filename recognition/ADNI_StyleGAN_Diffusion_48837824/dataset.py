@@ -7,6 +7,7 @@ from utils import BATCH_SIZE, LOG_RESOLUTION, NUM_WORKERS, DATASET, RANDOM_SEED,
 """
 dataset.py
 Dataset loading and preprocessing
+Author: Tyreece Paul
 """
 
 # Hyperparameters

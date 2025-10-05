@@ -1,8 +1,3 @@
-"""
-Generate images from trained conditional StyleGAN2
-Use this after training to generate AD or NC samples on demand
-"""
-
 import torch
 from torchvision.utils import save_image
 import argparse
@@ -12,8 +7,23 @@ from modules import Generator
 from modules import ConditionalMappingNetwork as MappingNetwork
 from utils import get_w, get_noise, DEVICE, W_DIM, LOG_RESOLUTION, Z_DIM, CLASS_NAMES
 
+"""
+train.py
+Training loop for conditional StyleGAN2 on ADNI dataset
+Author: Tyreece Paul
+"""
+
 def load_checkpoint(checkpoint_path, device=DEVICE):
-    """Load trained models from checkpoint"""
+    """
+    Load model checkpoint
+    Args:
+        checkpoint_path (str): Path to the checkpoint file
+        device (str): Device to load the model onto
+    Returns:
+        gen: Loaded Generator model
+        mapping: Loaded Mapping Network
+    """
+
     print(f"Loading checkpoint: {checkpoint_path}")
     checkpoint = torch.load(checkpoint_path, map_location=device)
     
@@ -43,6 +53,7 @@ def generate_class_samples(gen, mapping, class_idx, num_samples=16, output_dir='
         output_dir: Directory to save images
         device: Device
     """
+
     os.makedirs(output_dir, exist_ok=True)
     class_name = CLASS_NAMES[class_idx]
     
@@ -76,7 +87,16 @@ def generate_class_samples(gen, mapping, class_idx, num_samples=16, output_dir='
     return fake_imgs
 
 def generate_mixed_batch(gen, mapping, num_per_class=8, output_dir='generated_samples', device=DEVICE):
-    """Generate equal numbers of AD and NC images for comparison"""
+    """
+    Generate a mixed batch of AD and NC images for comparison
+    Args:
+        gen: Generator model
+        mapping: Mapping network
+        num_per_class: Number of images per class (total will be double)
+        output_dir: Directory to save images
+        device: Device
+    """
+
     os.makedirs(output_dir, exist_ok=True)
     
     print(f"\nGenerating mixed batch ({num_per_class} AD + {num_per_class} NC)...")
@@ -102,7 +122,17 @@ def generate_mixed_batch(gen, mapping, num_per_class=8, output_dir='generated_sa
         print(f"  (Top row: AD, Bottom row: NC)")
 
 def generate_latent_walk(gen, mapping, class_idx, steps=10, output_dir='generated_samples', device=DEVICE):
-    """Generate a walk through latent space for one class"""
+    """
+    Generate a latent space walk between two random points for a specific class.
+    Args:
+        gen: Generator model
+        mapping: Mapping network
+        class_idx: 0 for AD, 1 for NC
+        steps: Number of interpolation steps
+        output_dir: Directory to save images
+        device: Device
+    """
+    
     os.makedirs(output_dir, exist_ok=True)
     class_name = CLASS_NAMES[class_idx]
     
