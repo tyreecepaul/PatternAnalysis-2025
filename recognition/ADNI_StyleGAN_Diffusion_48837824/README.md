@@ -224,7 +224,7 @@ python train.py  # Results should be reproducible across runs
 ## File Structure
 
 ```
-├── train.py                 # Main training script 
+├── train.py                # Main training script 
 ├── predict.py              # Generate samples from trained model
 ├── modules.py              # Model architectures (Generator, Discriminator, etc.)
 ├── utils.py                # Utility functions and hyperparameters
