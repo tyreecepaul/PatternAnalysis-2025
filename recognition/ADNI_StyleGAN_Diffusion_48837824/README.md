@@ -62,6 +62,7 @@ Pillow>=9.0.0
 - **GPU**: NVIDIA GPU with CUDA support (minimum 8GB VRAM recommended)
 - **CUDA**: Version 11.8 or higher
 - **Python**: 3.8 or higher
+
 Note: Training implementation wiht default parameters using NVIDIA GPU RTX 4070 took 35 hours. 
 
 ### Installation
