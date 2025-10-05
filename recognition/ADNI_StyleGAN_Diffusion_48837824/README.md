@@ -125,18 +125,18 @@ The training process generates several types of outputs:
 
 ### Sample Generation Results
 
-![Generated AD Samples](generated_samples/AD_grid_16samples.png)
+![Generated AD Samples](docs/AD_grid_16samples.png)
 *Generated Alzheimer's Disease brain images*
 
-![Generated NC Samples](generated_samples/NC_grid_16samples.png) 
+![Generated NC Samples](docs/NC_grid_16samples.png) 
 *Generated Normal Control brain images*
 
-![Class Interpolation](saved_examples/epoch150_interpolation.png)
+![Class Interpolation](docs/epoch150_interpolation.png)
 *Interpolation between AD and NC characteristics*
 
 ### Training Progress Visualization
 
-![Training Losses](plots/training_losses.png)
+![Training Losses](docs/training_losses.png)
 *Training loss curves showing convergence of generator and discriminator*
 
 ## Data Preprocessing
@@ -184,7 +184,7 @@ train_transform = transforms.Compose([
 
 ```python
 # Hyperparameters
-BATCH_SIZE = 4                    # Memory-efficient for 256x256 generation
+BATCH_SIZE = 4                   # Memory-efficient for 256x256 generation
 LEARNING_RATE_G = 0.002          # Generator learning rate
 LEARNING_RATE_D = 0.001          # Reduced discriminator LR for stability
 R1_GAMMA = 10.0                  # R1 gradient penalty weight
