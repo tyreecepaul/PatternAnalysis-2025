@@ -1,3 +1,9 @@
+"""
+utils.py 
+Utility functions for Conditional StyleGAN2 training on AD vs NC MRI data.
+Author: Tyreece Paul
+"""
+
 import torch
 from torchvision.utils import save_image
 import os
@@ -6,30 +12,26 @@ import numpy as np
 
 from modules import ConditionalMappingNetwork as MappingNetwork
 
-"""
-utils.py - Fixed configuration for StyleGAN2
-"""
-
 # Training Configuration
 DATASET = "ADNI/AD_NC/train"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-EPOCHS = 150  # Increased for proper convergence
+EPOCHS = 150 
 
 # Learning Configuration
-LEARNING_RATE = 0.002  # 2e-3 is standard for StyleGAN2
-BATCH_SIZE = 4  # Reduced for 256x256 on RTX 4070 (12GB)
+LEARNING_RATE = 0.002  
+BATCH_SIZE = 4  
 
 # Architecture Configuration
-LOG_RESOLUTION = 8  # 2^8 = 256x256
+LOG_RESOLUTION = 8  
 Z_DIM = 512
 W_DIM = 512
 
 # Regularization
-R1_GAMMA = 10.0  # R1 gradient penalty weight
-PL_WEIGHT = 2.0  # Path length regularization weight
+R1_GAMMA = 10.0  
+PL_WEIGHT = 2.0  
 
 # Data Loading
-NUM_WORKERS = 4  # Reduced to save system memory
+NUM_WORKERS = 4  
 RANDOM_SEED = 42
 VAL_SPLIT = 0.1
 
@@ -38,21 +40,28 @@ SAVE_INTERVAL = 1
 VAL_INTERVAL = 10
 VAL_SAMPLES = 16
 
-CLASS_NAMES = ['AD', 'NC']  # Alzheimer's Disease vs Normal Control
+CLASS_NAMES = ['AD', 'NC']  
 
 # Performance
-USE_AMP = True  # Mixed precision - essential for RTX 4070
+USE_AMP = True 
 
 # Initialize mapping network
 mapping_network = MappingNetwork(Z_DIM, W_DIM, num_layers=8).to(DEVICE)
 
 def get_w(batch_size, mapping_network, labels, device=DEVICE):
-    """
+    """  
     Generate w latent vectors from random z noise for conditional generation.
-    Returns shape [batch_size, num_layers, W_DIM]
+    Args:
+        batch_size (int): Number of samples to generate.
+        mapping_network (nn.Module): The mapping network to convert z to w.
+        labels (torch.Tensor): Class labels for conditional generation.
+        device (str): Device to perform computation on.
+    Returns:
+        torch.Tensor: Latent vectors in w space, shape (batch_size, num_layers, W_DIM).
     """
+
     z = torch.randn(batch_size, Z_DIM, device=device)
-    w = mapping_network(z, labels)  # Pass labels for conditional mapping
+    w = mapping_network(z, labels)  
     
     # Calculate number of style injection points
     # Initial: 1, Then 2 per upsampling block
@@ -65,9 +74,14 @@ def get_w(batch_size, mapping_network, labels, device=DEVICE):
 
 def get_noise(batch_size, device=DEVICE):
     """
-    Generate noise tensors for each layer of the generator.
-    Returns list of noise tuples for each resolution level.
+    Generate noise inputs for the generator at each resolution level.
+    Args:
+        batch_size (int): Number of samples to generate.
+        device (str): Device to perform computation on.
+    Returns:
+        list of torch.Tensor: List of noise tensors for each resolution level.
     """
+
     noise_list = []
     resolution = 4
     
@@ -83,11 +97,19 @@ def get_noise(batch_size, device=DEVICE):
     
     return noise_list
 
+
 def generate_examples(gen, mapping_network, epoch, n=16, device='cuda'):
     """
-    Enhanced generation with adaptive contrast stretching for early epochs.
-    This makes low-variance outputs visible during early training.
+    Generate and save example images from the generator.
+    Applies multiple visualization techniques to ensure visibility of outputs.
+    Args:
+        gen (nn.Module): The generator model.
+        mapping_network (nn.Module): The mapping network.
+        epoch (int): Current epoch number (for saving files).
+        n (int): Number of images to generate.
+        device (str): Device to perform computation on.
     """
+
     gen.eval()
     mapping_network.eval()
     
@@ -174,8 +196,20 @@ def generate_examples(gen, mapping_network, epoch, n=16, device='cuda'):
     gen.train()
     mapping_network.train()
 
+
 def update_stats_plot(epoch, img_min, img_max, img_mean, img_std, folder):
-    """Track generator output statistics over training"""
+    """
+    Track generator output statistics over training.
+    Saves a plot of min, max, mean, std over epochs.
+    Args:
+        epoch (int): Current epoch number.
+        img_min (float): Minimum pixel value of generated images.
+        img_max (float): Maximum pixel value of generated images.
+        img_mean (float): Mean pixel value of generated images.
+        img_std (float): Standard deviation of pixel values.
+        folder (str): Folder to save the stats file and plot.
+    """
+    
     stats_file = f"{folder}/generation_stats.txt"
     
     # Append stats
@@ -247,9 +281,14 @@ def update_stats_plot(epoch, img_min, img_max, img_mean, img_std, folder):
 
 def generate_interpolation(gen, mapping_network, epoch, device='cuda'):
     """
-    Generate interpolation between AD and NC in latent space.
-    This shows the transition from diseased to healthy brain patterns.
+    Generate and save interpolation images between AD and NC classes.
+    Args:
+        gen (nn.Module): The generator model.
+        mapping_network (nn.Module): The mapping network.
+        epoch (int): Current epoch number (for saving files).
+        device (str): Device to perform computation on.
     """
+
     gen.eval()
     mapping_network.eval()
     
@@ -298,8 +337,14 @@ def generate_interpolation(gen, mapping_network, epoch, device='cuda'):
 def calculate_gradient_penalty_r1(disc, real_imgs, device=DEVICE):
     """
     Calculate R1 gradient penalty for the discriminator.
-    This is the StyleGAN2 approach - simpler and more effective than WGAN-GP.
+    Args:
+        disc (nn.Module): The discriminator model.
+        real_imgs (torch.Tensor): Real images from the dataset.
+        device (str): Device to perform computation on.
+    Returns:
+        torch.Tensor: R1 gradient penalty.
     """
+    
     real_imgs.requires_grad_(True)
     real_pred = disc(real_imgs)
     
