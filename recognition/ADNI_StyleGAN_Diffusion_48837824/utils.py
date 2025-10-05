@@ -18,7 +18,6 @@ EPOCHS = 150  # Increased for proper convergence
 # Learning Configuration
 LEARNING_RATE = 0.002  # 2e-3 is standard for StyleGAN2
 BATCH_SIZE = 4  # Reduced for 256x256 on RTX 4070 (12GB)
-# If you get OOM errors, try BATCH_SIZE = 2 with gradient accumulation
 
 # Architecture Configuration
 LOG_RESOLUTION = 8  # 2^8 = 256x256
@@ -35,7 +34,7 @@ RANDOM_SEED = 42
 VAL_SPLIT = 0.1
 
 # Training Intervals
-SAVE_INTERVAL = 5
+SAVE_INTERVAL = 1
 VAL_INTERVAL = 10
 VAL_SAMPLES = 16
 

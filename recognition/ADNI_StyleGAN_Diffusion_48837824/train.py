@@ -28,6 +28,10 @@ Conditional StyleGAN2 Training for AD vs NC
 D_REG_INTERVAL = 16
 G_REG_INTERVAL = 4
 
+# Balanced Learning Rates (fix for D overpowering G)
+D_LEARNING_RATE = LEARNING_RATE * 0.5  # Reduce discriminator LR
+G_LEARNING_RATE = LEARNING_RATE         # Keep generator LR
+
 print(f"Using device: {DEVICE}")
 print(f"CUDA available: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
@@ -47,13 +51,13 @@ pl_penalty = PathLengthPenalty().to(DEVICE)
 # Optimizers
 opt_gen = optim.Adam(
     list(gen.parameters()) + list(mapping_network.parameters()),
-    lr=LEARNING_RATE,
+    lr=G_LEARNING_RATE,
     betas=(0.0, 0.99),
     eps=1e-8
 )
 opt_disc = optim.Adam(
     disc.parameters(),
-    lr=LEARNING_RATE,
+    lr=D_LEARNING_RATE,
     betas=(0.0, 0.99),
     eps=1e-8
 )
@@ -81,7 +85,7 @@ print(f"  • Projection-based conditioning")
 print(f"  • Non-saturating loss with R1 regularization")
 print(f"  • R1 gamma: {R1_GAMMA}, applied every {D_REG_INTERVAL} steps")
 print(f"  • Path length weight: {PL_WEIGHT}, applied every {G_REG_INTERVAL} steps")
-print(f"  • Learning rate: {LEARNING_RATE} (both G and D)")
+print(f"  • Generator LR: {G_LEARNING_RATE}, Discriminator LR: {D_LEARNING_RATE}")
 print("=" * 60)
 
 global_step = 0
