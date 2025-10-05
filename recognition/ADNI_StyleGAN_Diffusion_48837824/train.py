@@ -21,7 +21,27 @@ from utils import (
 )
 
 """
-Conditional StyleGAN2 Training for AD vs NC
+Conditional StyleGAN2 training script for AD vs NC.
+
+This script runs class-conditional StyleGAN2 training using a projection-based
+discriminator and a conditional mapping network. It implements the common
+StyleGAN2 training recipe with the following features:
+
+- Mixed precision (AMP) for memory and performance.
+- Lazy R1 regularization for the discriminator and path-length regularization for the generator.
+- Projection-based conditioning (class embeddings used in discriminator projection term).
+- Checkpointing and sample generation (saved to `checkpoints/` and `saved_examples/`).
+
+Usage:
+    python train.py
+
+Hyperparameters and dataset paths are controlled from `utils.py`. The script
+prints training progress and saves periodic checkpoints and sample images.
+
+Outputs:
+- Checkpoints: ./checkpoints/conditional_stylegan2_epoch{epoch}.pth
+- Sample images and analysis: saved_examples/
+- Final training summary plot: conditional_training_summary.png
 """
 
 # Training Configuration
@@ -44,6 +64,9 @@ print(f"Classes: {CLASS_NAMES}")
 print("-" * 60)
 
 # Initialize models (Generator stays the same, Discriminator is conditional)
+# Note: mapping_network is defined and instantiated in `utils.mapping_network`.
+# We pass `mapping_network` parameters into the generator optimizer so the
+# mapping network is trained jointly with the generator.
 gen = Generator(LOG_RESOLUTION, W_DIM).to(DEVICE)
 disc = Discriminator(LOG_RESOLUTION, num_classes=2).to(DEVICE)
 pl_penalty = PathLengthPenalty().to(DEVICE)
@@ -111,9 +134,7 @@ for epoch in range(1, EPOCHS + 1):
         epoch_ad_count += (labels == 0).sum().item()
         epoch_nc_count += (labels == 1).sum().item()
 
-        # =====================
-        # Train Discriminator
-        # =====================
+        # Train Discriminator 
         disc.zero_grad()
         
         # Generate fake images with SAME class distribution as real batch
@@ -161,9 +182,7 @@ for epoch in range(1, EPOCHS + 1):
         scaler_disc.step(opt_disc)
         scaler_disc.update()
 
-        # =====================
         # Train Generator
-        # =====================
         gen.zero_grad()
         mapping_network.zero_grad()
         
@@ -250,6 +269,9 @@ for epoch in range(1, EPOCHS + 1):
             'opt_disc': opt_disc.state_dict(),
             'class_names': CLASS_NAMES,
         }, f"checkpoints/conditional_stylegan2_epoch{epoch}.pth")
+        # The checkpoint includes optimizer states so training can be resumed
+        # (useful if training is interrupted). Intentionally save every 25
+        # epochs to balance disk usage and recovery granularity.
         print(f"  ✓ Saved checkpoint: conditional_stylegan2_epoch{epoch}.pth")
 
 # Final plots
