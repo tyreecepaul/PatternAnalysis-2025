@@ -121,6 +121,7 @@ def generate_mixed_batch(gen, mapping, num_per_class=8, output_dir='generated_sa
         all_imgs = []
         
         for class_idx in [0, 1]:
+            class_name = CLASS_NAMES[class_idx]
             class_labels = torch.full((num_per_class,), class_idx, dtype=torch.long, device=device)
             w = get_w(num_per_class, mapping, class_labels, device)
             noise = get_noise(num_per_class, device)
@@ -128,6 +129,11 @@ def generate_mixed_batch(gen, mapping, num_per_class=8, output_dir='generated_sa
             imgs = imgs * 0.5 + 0.5
             imgs = torch.clamp(imgs, 0, 1)
             all_imgs.append(imgs)
+            
+            # Save individual images
+            for i, img in enumerate(imgs):
+                img_path = f"{output_dir}/{class_name}_{i+1}.png"
+                save_image(img, img_path, normalize=False)
         
         # Concatenate: AD on top, NC on bottom
         combined = torch.cat(all_imgs, dim=0)
@@ -135,7 +141,9 @@ def generate_mixed_batch(gen, mapping, num_per_class=8, output_dir='generated_sa
         grid_path = f"{output_dir}/mixed_comparison_{num_per_class}x2.png"
         save_image(combined, grid_path, nrow=num_per_class, padding=2, normalize=False)
         print(f"✓ Saved comparison grid: {grid_path}")
-        print(f"  (Top row: AD, Bottom row: NC)")
+        print(f"✓ Saved {num_per_class * 2} individual images to {output_dir}/")
+        print(f"  (AD: AD_1.png to AD_{num_per_class}.png)")
+        print(f"  (NC: NC_1.png to NC_{num_per_class}.png)")
 
 def generate_latent_walk(gen, mapping, class_idx, steps=10, output_dir='generated_samples', device=DEVICE):
     """

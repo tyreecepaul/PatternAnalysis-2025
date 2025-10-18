@@ -1,18 +1,23 @@
-# StyleGAN2 for Alzheimer's Disease vs Normal Control Brain Image Generation
+# StyleGAN2 for ADNI (Alzheimer's Disease Neuroimaging Initiative)
 
-## Overview
+**COMP3710 - Pattern Recognition and Analysis**
 
-This project implements a **StyleGAN2** architecture for generating synthetic brain images conditioned on medical diagnoses: Alzheimer's Disease (AD) versus Normal Control (NC). The algorithm addresses the critical problem of data scarcity in medical imaging by generating high-quality, class-specific synthetic brain images that can augment training datasets for diagnostic models. This approach is particularly valuable in neuroimaging research where obtaining large, balanced datasets is challenging due to privacy concerns, data collection costs, and the relative rarity of certain conditions.
+**Task 11** - Generative Model of ADNI Dataset using StyleGAN2 <br>
+**Author** - Tyreece Paul (48837824)
+
+## Project Overview
+
+This project implements a StyleGAN2 architecture model for generating synthetic brain images conditioned on medial dianoses: Alzheimer's Disease (AD) and Normal Control (NC) using the Alzheimer's Disease Neuroimaging Initiative (ADNI) dataset. The project's goal is to address data scarcity in medical imaging by generation of high quality, class-specific brain images that can augment training datasets for diagnostic models, which is particularly valuable in neuroimaging research where obtaining large, balanced dataset is challenging due to privacy concerns and data collection cost. 
 
 ## Algorithm Description
 
-Our implementation uses **projection-based conditional generation** with StyleGAN2 as the backbone architecture. The system learns to generate 256×256 brain images by conditioning the generation process on class labels through two key mechanisms:
+StyleGAN consists of a Mapping Network, Discriminator and Generator, where Mapping Network transforms random latent vector into an intermediate style space. The Generator uses this style vector and progressively synthesises images through series of convolutional layers beginning with a learned constant. The Discrimnator's role is to distinguish between real and generated images, providing feedback to improve the Generator's ouput each epoch. 
 
-1. **Conditional Mapping Network**: Extends the standard StyleGAN2 mapping network by incorporating learned class embeddings. The network takes a random latent vector *z* and a class label, combines them through learned embeddings, and maps them to the intermediate latent space *w*.
+This conditional implementation extends the standard StyleGAN architecture for class-specific generation (AD vs NC). The Mapping Network incorporates learned class embeddings, concatening them with the latent vector to produce class-conditioned style codes. The Generator uses these conditioned styles to create releavnt images throguh progressive synthesis through application of style modulation and noise injection at each resolution. The Discriminator employs projection-based conditioning, adding a class-aware term to its real/fake discrimination by computing the dot product between image features and class embeddings.
 
-2. **Projection Discriminator**: Uses the projection-based conditioning method where class information is incorporated through a dot product between image features and learned class embeddings, added to the standard real/fake classification score.
+Training stability is maintained throug equalised learnign ratesa across all layers, Path Length Regularization to ensure smooth latent space interpolation and adaptive learnign rate scheduling.
 
-The training process employs balanced learning rates (discriminator LR = 0.5 × generator LR) to maintain stable adversarial training, along with R1 gradient penalty for the discriminator and path-length regularization for the generator to ensure high-quality, diverse outputs.
+## Visualisation
 
 ![StyleGAN2 Architecture](docs/stylegan2_architecture.png)
 
