@@ -16,7 +16,7 @@ from dataset import get_dataloaders
 from utils import (
     get_w, get_noise, generate_examples, generate_interpolation,
     DEVICE, LEARNING_RATE, BATCH_SIZE, LOG_RESOLUTION, USE_AMP, 
-    W_DIM, VAL_SAMPLES, mapping_network, EPOCHS, SAVE_INTERVAL, 
+    W_DIM, Z_DIM, VAL_SAMPLES, mapping_network, EPOCHS, SAVE_INTERVAL, 
     VAL_INTERVAL, PL_WEIGHT, R1_GAMMA, CLASS_NAMES
 )
 
@@ -70,6 +70,18 @@ print("-" * 60)
 gen = Generator(LOG_RESOLUTION, W_DIM).to(DEVICE)
 disc = Discriminator(LOG_RESOLUTION, num_classes=2).to(DEVICE)
 pl_penalty = PathLengthPenalty().to(DEVICE)
+
+# Get the number of layers from the generator
+NUM_LAYERS = gen.num_layers
+
+# Helper function to get w with correct number of layers
+def get_w_correct(batch_size, mapping_network, labels, num_layers=NUM_LAYERS, device=DEVICE):
+    """Generate w latent vectors with correct number of layers for this generator."""
+    z = torch.randn(batch_size, W_DIM, device=device)
+    w = mapping_network(z, labels)
+    # Broadcast w to all layers using the generator's num_layers
+    w = w.unsqueeze(1).expand(-1, num_layers, -1)
+    return w
 
 # Optimizers
 opt_gen = optim.Adam(
@@ -138,7 +150,7 @@ for epoch in range(1, EPOCHS + 1):
         disc.zero_grad()
         
         # Generate fake images with SAME class distribution as real batch
-        w = get_w(batch_size, mapping_network, labels)
+        w = get_w_correct(batch_size, mapping_network, labels)
         noise = get_noise(batch_size)
         
         with torch.amp.autocast('cuda', enabled=USE_AMP):
@@ -186,7 +198,7 @@ for epoch in range(1, EPOCHS + 1):
         gen.zero_grad()
         mapping_network.zero_grad()
         
-        w = get_w(batch_size, mapping_network, labels)
+        w = get_w_correct(batch_size, mapping_network, labels)
         noise = get_noise(batch_size)
         
         with torch.amp.autocast('cuda', enabled=USE_AMP):
@@ -202,7 +214,7 @@ for epoch in range(1, EPOCHS + 1):
         pl_loss = torch.tensor(0.0, device=DEVICE)
         if global_step % G_REG_INTERVAL == 0:
             # Generate new samples for path length
-            w_pl = get_w(batch_size, mapping_network, labels)
+            w_pl = get_w_correct(batch_size, mapping_network, labels)
             w_pl.requires_grad_(True)
             noise_pl = get_noise(batch_size)
             

@@ -63,10 +63,9 @@ def get_w(batch_size, mapping_network, labels, device=DEVICE):
     z = torch.randn(batch_size, Z_DIM, device=device)
     w = mapping_network(z, labels)  
     
-    # Calculate number of style injection points
-    # Initial: 1, Then 2 per upsampling block
-    num_blocks = LOG_RESOLUTION - 2  # e.g., 8-2 = 6 blocks
-    num_layers = 1 + 2 * num_blocks  # 1 + 2*6 = 13
+    # Calculate number of style injection points using Generator formula
+    # Generator expects: 2 * (log_res - 1) layers
+    num_layers = 2 * (LOG_RESOLUTION - 1)  # e.g., 2 * (8-1) = 14
     
     # Broadcast w to all layers
     w = w.unsqueeze(1).expand(-1, num_layers, -1)
