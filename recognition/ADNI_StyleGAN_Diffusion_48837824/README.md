@@ -13,11 +13,99 @@ This project implements a StyleGAN2 architecture model for generating synthetic 
 
 StyleGAN consists of a Mapping Network, Discriminator and Generator, where Mapping Network transforms random latent vector into an intermediate style space. The Generator uses this style vector and progressively synthesises images through series of convolutional layers beginning with a learned constant. The Discrimnator's role is to distinguish between real and generated images, providing feedback to improve the Generator's ouput each epoch. 
 
-This conditional implementation extends the standard StyleGAN architecture for class-specific generation (AD vs NC). The Mapping Network incorporates learned class embeddings, concatening them with the latent vector to produce class-conditioned style codes. The Generator uses these conditioned styles to create releavnt images throguh progressive synthesis through application of style modulation and noise injection at each resolution. The Discriminator employs projection-based conditioning, adding a class-aware term to its real/fake discrimination by computing the dot product between image features and class embeddings.
+This conditional implementation extends the standard StyleGAN architecture for class-specific generation (AD vs NC). The Mapping Network incorporates learned class embeddings, concatening them with the latent vector to produce class-conditioned style codes. The Generator uses these conditioned styles to create relevant images through progressive synthesis through application of style modulation and noise injection at each resolution. The Discriminator employs projection-based conditioning, adding a class-aware term to its real/fake discrimination by computing the dot product between image features and class embeddings.
 
 Training stability is maintained throug equalised learnign ratesa across all layers, Path Length Regularization to ensure smooth latent space interpolation and adaptive learnign rate scheduling.
 
 ## Visualisation
+<p float="centre">
+  <img src="docs/individual/epoch2.png" width="300" />
+  <img src="docs/individual/epoch10.png" width="300" />`
+</p>
+
+*Figure 1: Early Generation Training (Epoch 2 and Epoch 10)*
+
+<p float="centre">
+  <img src="docs/individual/AD_epoch25.png" width="300" />
+  <img src="docs/individual/AD_epoch75.png"width="300" />
+  <img src="docs/individual/AD_epoch150.png"width="300" />`
+</p>
+
+*Figure 2: Late Generated Alzheimer's (AD) Training (Epoch 25, 75, 150)*
+
+
+<p float="centre">
+  <img src="docs/individual/NC_epoch25.png" width="300" />
+  <img src="docs/individual/NC_epoch75.png"width="300" />
+  <img src="docs/individual/NC_epoch150.png"width="300" />
+</p>
+
+*Figure 3: Late Generated Normal (NC) Training (Epoch 25, 75, 150)*
+
+## Table of Contents:
+[1. Project Structure]() <br>
+[2. Dependencies]() <br>
+[3. Installation]() <br>
+[4. Usage]() <br>
+[5. Dataset]()  <br>
+[6. Data Setup and Preprocessing]() <br>
+[7. Model Architecture]() <br>
+[8. Training Processes]() <br>
+[9. Results]() <br>
+[10. Analysis of Results]() <br>
+[11. Performative Metrics]() <br>
+[12. Analysis of Performance Metrics]() <br>
+[13. Style Space and Plot Discussion]() <br>
+[14. References]() <br>
+
+## Project Structure
+
+The project consists of the following file structure:
+
+- [`dataset.py`](dataset.py): Data loading and data preprocessing.
+- [`modules.py`](modules.py): Contains source code for model components.
+- [`predict.py`](predict.py): Trained model usage (for generation and plots)
+- [`train.py`](train.py): Model training, including validation, testing and saving the model.
+- [`utils.py`](utils.py): Utility methods and configs for training.
+
+
+## Dependencies
+- Model was trained on Linux (Arch) with RTX 4070 GPU. Works with Windows. No training was done with MacOS.
+- Python 3.10 or later installation. Miniconda was used for virtual enviornment.
+
+
+## Installation
+
+## Usage
+
+## Dataset
+
+## Data Setup and Preprocessing
+
+## Model Architecture
+
+## Training Processes
+
+## Results
+
+## Analysis of Results
+
+## Performative Metrics
+
+## Analysis of Performative Metrics
+
+## Style Space and Plot Dicussion
+
+## References
+https://arxiv.org/abs/1812.04948
+https://github.com/NVlabs/stylegan2
+https://openreview.net/pdf?id=7TZeCsNOUB_
+https://arxiv.org/abs/1802.05637
+
+
+
+
+
 
 ![StyleGAN2 Architecture](docs/stylegan2_architecture.png)
 
