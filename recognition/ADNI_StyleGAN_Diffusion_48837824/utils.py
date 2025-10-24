@@ -1,9 +1,3 @@
-"""
-utils.py 
-Utility functions for Conditional StyleGAN2 training on AD vs NC MRI data.
-Author: Tyreece Paul
-"""
-
 import torch
 from torchvision.utils import save_image
 import os
@@ -11,6 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from modules import ConditionalMappingNetwork as MappingNetwork
+
+"""
+utils.py 
+Utility functions for Conditional StyleGAN2 training on AD vs NC MRI data.
+Author: Tyreece Paul
+"""
 
 # Training Configuration
 DATASET = "ADNI/AD_NC/train"

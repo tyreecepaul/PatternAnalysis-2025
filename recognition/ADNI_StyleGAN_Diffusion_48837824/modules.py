@@ -1,3 +1,9 @@
+import torch
+from torch import nn
+import torch.nn.functional as F
+from math import sqrt
+import numpy as np
+
 """ 
 modules.py
 Conditional StyleGAN2 Model Implementation for ADNI Dataset
@@ -6,12 +12,6 @@ Conditional StyleGAN2 Model Implementation for ADNI Dataset
 - Implementation based on the original StyleGAN2 paper and PyTorch framework
 Author: Tyreece Paul
 """
-
-import torch
-from torch import nn
-import torch.nn.functional as F
-from math import sqrt
-import numpy as np
 
 
 class ConditionalMappingNetwork(nn.Module):

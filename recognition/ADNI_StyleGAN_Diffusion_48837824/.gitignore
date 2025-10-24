@@ -1,6 +1,7 @@
 .vscode/
 ADNI/
 saved_examples/
+original_checkpoints/
 checkpoints/
 generated_samples/
 plots/

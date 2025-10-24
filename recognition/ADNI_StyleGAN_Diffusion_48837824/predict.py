@@ -5,12 +5,6 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
-try:
-    import umap
-    UMAP_AVAILABLE = True
-except ImportError:
-    UMAP_AVAILABLE = False
-    print("Warning: UMAP not available. Install with: pip install umap-learn")
 
 from modules import Generator, ConditionalDiscriminator
 from modules import ConditionalMappingNetwork as MappingNetwork
@@ -19,8 +13,9 @@ from dataset import get_dataloaders
 from torchvision import transforms
 
 """
-train.py
-Training loop for conditional StyleGAN2 on ADNI dataset
+predict.py
+Inference and visualization script for conditional StyleGAN2 on ADNI dataset.
+Supports image generation, latent walks, and t-SNE embedding visualization.
 Author: Tyreece Paul
 """
 
@@ -226,16 +221,16 @@ def extract_w_vectors(mapping, num_samples, labels, device=DEVICE):
 
 
 def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples', 
-                         num_samples=100, method='tsne', device=DEVICE):
+                         num_samples=100, device=DEVICE):
     """
-    Create t-SNE or UMAP embeddings visualization comparing real and generated images.
+    Create t-SNE embeddings visualization comparing real and generated images.
     
     This function:
     1. Loads real images from the dataset
     2. Generates synthetic images for both classes
-    3. Extracts discriminator features from all images
-    4. Projects features to 2D using t-SNE or UMAP
-    5. Creates a visualization with ground truth labels in color
+    3. Extracts W-space features from the mapping network
+    4. Projects features to 2D using t-SNE with accurate parameters
+    5. Creates visualization with ground truth labels and data type markers
     
     Args:
         gen: Generator model
@@ -243,19 +238,13 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
         disc: Discriminator model
         output_dir: Directory to save plots
         num_samples: Number of samples per class (real and generated)
-        method: 'tsne' or 'umap'
         device: Device
     """
     os.makedirs(output_dir, exist_ok=True)
     
     print(f"\n{'='*60}")
-    print(f"GENERATING {method.upper()} EMBEDDING VISUALIZATION")
+    print(f"GENERATING t-SNE EMBEDDING VISUALIZATION")
     print(f"{'='*60}")
-    
-    # Check if UMAP is available
-    if method == 'umap' and not UMAP_AVAILABLE:
-        print("UMAP not available, falling back to t-SNE")
-        method = 'tsne'
     
     # Load real images from dataset
     print(f"Loading {num_samples} real images per class...")
@@ -310,16 +299,23 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     all_types = np.array(['Real'] * len(real_labels) + ['Generated'] * len(gen_labels))
     
     print(f"✓ Extracted features: shape {all_features.shape}")
+    print(f"  Label distribution: AD={np.sum(all_labels==0)}, NC={np.sum(all_labels==1)}")
+    print(f"  Real samples: AD={np.sum((all_types=='Real') & (all_labels==0))}, NC={np.sum((all_types=='Real') & (all_labels==1))}")
+    print(f"  Generated samples: AD={np.sum((all_types=='Generated') & (all_labels==0))}, NC={np.sum((all_types=='Generated') & (all_labels==1))}")
     
-    # Perform dimensionality reduction
-    print(f"Computing {method.upper()} projection...")
-    if method == 'tsne':
-        reducer = TSNE(n_components=2, random_state=42, perplexity=30, max_iter=1000)
-    else:  # umap
-        reducer = umap.UMAP(n_components=2, random_state=42, n_neighbors=15, min_dist=0.1)
-    
+    # Perform dimensionality reduction with accurate t-SNE parameters
+    print(f"Computing t-SNE projection...")
+    reducer = TSNE(
+        n_components=2,
+        perplexity=30,
+        learning_rate='auto',
+        init='pca',
+        max_iter=1000,
+        random_state=42,
+        verbose=1
+    )
     embeddings = reducer.fit_transform(all_features)
-    print(f"✓ {method.upper()} projection complete")
+    print(f"✓ t-SNE projection complete")
     
     # Create visualization
     print("Creating visualization...")
@@ -364,7 +360,7 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     plt.tight_layout()
     
     # Save plot
-    plot_path = f"{output_dir}/{method}_embeddings.png"
+    plot_path = f"{output_dir}/tsne_embeddings.png"
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     print(f"✓ Saved visualization: {plot_path}")
     
@@ -383,15 +379,15 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
                           alpha=0.6, s=60, marker=marker,
                           edgecolors='k', linewidth=0.5)
     
-    ax.set_title(f'{method.upper()} Embedding: Class Labels and Data Type', 
+    ax.set_title('t-SNE Embedding: Class Labels and Data Type', 
                 fontsize=14, fontweight='bold')
-    ax.set_xlabel(f'{method.upper()}-1', fontsize=12)
-    ax.set_ylabel(f'{method.upper()}-2', fontsize=12)
+    ax.set_xlabel('t-SNE-1', fontsize=12)
+    ax.set_ylabel('t-SNE-2', fontsize=12)
     ax.legend(loc='best', fontsize=10, framealpha=0.9, ncol=2)
     ax.grid(alpha=0.3)
     
     plt.tight_layout()
-    combined_path = f"{output_dir}/{method}_embeddings_combined.png"
+    combined_path = f"{output_dir}/tsne_embeddings_combined.png"
     plt.savefig(combined_path, dpi=300, bbox_inches='tight')
     print(f"✓ Saved combined visualization: {combined_path}")
     
@@ -399,7 +395,7 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     print(f"\n{'='*60}")
     print("INTERPRETATION")
     print(f"{'='*60}")
-    print(f"The {method.upper()} visualization of W vectors reveals several key insights:")
+    print(f"The t-SNE visualization of W vectors reveals several key insights:")
     print()
     print("1. STYLE SPACE MANIFOLD:")
     print("   - W vectors form a continuous manifold in the learned style space.")
@@ -433,9 +429,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', type=str, default='generated_samples', help='Output directory')
     parser.add_argument('--mixed', action='store_true', help='Generate mixed AD/NC comparison')
     parser.add_argument('--walk', action='store_true', help='Generate latent space walk')
-    parser.add_argument('--embeddings', action='store_true', help='Generate t-SNE/UMAP embedding visualization')
-    parser.add_argument('--embedding_method', type=str, choices=['tsne', 'umap'], default='tsne',
-                       help='Embedding method to use (default: tsne)')
+    parser.add_argument('--embeddings', action='store_true', help='Generate t-SNE embedding visualization')
     parser.add_argument('--embedding_samples', type=int, default=100,
                        help='Number of samples per class for embeddings (default: 100)')
     
@@ -450,10 +444,9 @@ if __name__ == "__main__":
     
     # Generate based on arguments
     if args.embeddings:
-        # Generate embedding visualization
+        # Generate t-SNE embedding visualization
         visualize_embeddings(gen, mapping, disc, args.output_dir, 
-                           num_samples=args.embedding_samples,
-                           method=args.embedding_method)
+                           num_samples=args.embedding_samples)
     
     elif args.mixed:
         generate_mixed_batch(gen, mapping, args.num_samples // 2, args.output_dir)
