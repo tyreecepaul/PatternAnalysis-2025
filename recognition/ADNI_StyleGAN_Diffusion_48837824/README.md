@@ -196,34 +196,41 @@ Evaluation uses qualitative visual inspection and t-SNE latent space analysis (`
 
 ## Model Architecture
 
-The conditional StyleGAN2 implementation consists of three main components:
+The model is based on a StyleGAN-inspired architecture optimized for medical imaging, consisting of three main components: a mapping network, a synthesis network (generator), and a discriminator.
 
 ### Mapping Network
-- **Input**: 512-dimensional latent vector z ∈ Z and class label
-- **Architecture**: 8-layer MLP with learned class embeddings (embedding_dim=128)
-- **Output**: Style vector w ∈ W (512-dimensional intermediate latent space)
-- **Purpose**: Maps random noise to disentangled style space conditioned on AD/NC class
 
-### Generator
-- **Input**: Style vector w and noise inputs
-- **Architecture**: Progressive synthesis from 4×4 → 256×256 resolution
-- **Key features**:
-  - Learned constant input (4×4×512)
-  - Style modulation (AdaIN) at each resolution
-  - Noise injection for stochastic variation
-  - Upsampling layers: 4→8→16→32→64→128→256
-- **Output**: 3-channel RGB image (256×256×3)
+The mapping network transforms the input latent vector $z \in \mathbb{R}^{512}$ into an intermediate latent code $w \in \mathbb{R}^{512}$, producing a disentangled representation that improves feature control. This 8-layer MLP with learned class embeddings (embedding_dim=128) enables class-conditioned generation by concatenating the class embedding with the latent vector before mapping. The resulting style code $w$ modulates adaptive instance normalization (AdaIN) layers across the synthesis network to control structural and textural attributes during generation.
+
+### Synthesis Network (Generator)
+
+The synthesis network progressively constructs images from a learned constant (4×4×512), doubling resolution at each stage up to 256×256. Each synthesis block includes:
+
+- **Convolutional layers**: 3×3 convolutions with channel progression (512→256→128→64→32→16)
+- **Noise injection**: Stochastic variability at each resolution while maintaining anatomical fidelity
+- **AdaIN operations**: Style modulation controlled by the intermediate latent code $w$
+- **LeakyReLU activations**: Non-saturating activations with negative slope 0.2
+- **Equalized learning rate**: Runtime weight scaling by $1/\sqrt{\text{fan}_{\text{in}}}$ for training stability
+- **Residual connections**: Enhanced gradient propagation through the network
+
+The progressive upsampling path follows: 4×4 → 8×8 → 16×16 → 32×32 → 64×64 → 128×128 → 256×256, with style modulation and noise injection at each resolution level.
 
 ### Discriminator
-- **Input**: Real/generated images (256×256×3) and class label
-- **Architecture**: Progressive downsampling 256→4 with projection-based conditioning
-- **Key features**:
-  - Residual connections for gradient flow
-  - MinibatchStdDev layer for diversity
-  - Projection discriminator: adds class-aware term (φ(x)ᵀ·embed(y))
-- **Output**: Real/fake score + class-conditioned score
 
-![StyleGAN2 Architecture](docs/stylegan2_architecture.png)
+The discriminator mirrors the generator in reverse, applying progressive downsampling from 256×256 to 4×4 with modulated convolutions to assess image realism. Key features include:
+
+- **Progressive downsampling**: Residual blocks at each resolution for gradient flow
+- **MinibatchStdDev layer**: Promotes diversity in generated samples
+- **Projection-based conditioning**: Class-aware discrimination via $\phi(x)^T \cdot \text{embed}(y)$
+- **Non-saturating logistic loss**: Standard GAN objective for stable training
+- **R1 gradient penalty** (γ=10.0): Regularizes discriminator gradients to prevent instability
+- **Lazy regularization**: R1 penalty applied every 16 iterations to reduce computational overhead
+
+### Regularization Strategy
+
+**Path Length Regularization** (PL weight=2.0): Ensures smooth latent traversals and consistent perceptual changes in generated images. This regularization encourages the generator to maintain a constant rate of change in image space as the latent code varies, resulting in more semantically meaningful interpolations.
+
+![StyleGAN2 Architecture](docs/model-architecture.png)
 
 *Figure 4: Conditional StyleGAN2 architecture showing the conditional mapping network and projection discriminator*
 
@@ -419,51 +426,15 @@ Since FID/IS require large sample sets and reference statistics, we report infor
 
 ## Analysis of Performance Metrics
 
-### Training Stability Assessment
-
-**Evidence of stable training:**
-1. **Loss curves**: Smooth convergence without oscillations (see `conditional_training_summary.png`)
-2. **No discriminator collapse**: D loss remains in [0.6, 0.9] range (healthy equilibrium)
-3. **No generator collapse**: G loss decreases steadily then plateaus (not stuck at high loss)
-4. **Regularization effectiveness**: Path length stabilizes around 15-20 (target range)
-
 ![Training Losses](docs/training_losses.png)
 
 *Figure 7: Training loss curves showing generator and discriminator convergence over 150 epochs*
 
-### Regularization Impact
+The GAN training losses show a significant imbalance, indicative of a Discriminator (D) overpowering the Generator (G). The Discriminator Loss (D Loss) starts high but rapidly decreases and stabilizes at a very low value ($\approx 0.3$), meaning the Discriminator quickly became highly effective and confident at distinguishing real images from fakes. Concurrently, the Generator Loss (G Loss) steadily climbs, rising sharply after epoch 90 to an unstable level around $\approx 3.0$. This divergence confirms that the Generator is struggling immensely to produce samples convincing enough to fool the strong Discriminator, which is a classic symptom of training instability and potential failure to converge to high-quality results.The two regularization losses, typical of a StyleGAN architecture, show expected optimization behavior. The R1 Regularization Loss increases, confirming that a stronger penalty is being applied to the Discriminator's gradients to maintain stability as it grows more powerful. Similarly, the Path Length Regularization Loss (PL Loss) also increases steadily, suggesting the Generator is successfully optimizing its latent space mapping to ensure smooth image interpolations. However, these regularization efforts are not enough to overcome the fundamental instability caused by the large performance gap between the two networks, making the current training configuration likely inefficient or unsuccessful for generating realistic images.
 
-**R1 Gradient Penalty (γ=10.0):**
-- Prevents discriminator gradients from exploding
-- Stabilizes training at high resolutions (256×256)
-- Lazy schedule (every 16 steps) reduces overhead to ~15%
+This instability may be exacerbated by the Conditional Projection Discriminator architecture used here. In a Conditional GAN, the Discriminator must learn two things: image realism (unconditional score) and class fidelity (projection term). When the Discriminator rapidly learns the correct class embedding and projection space, it gains a powerful "shortcut" to critique the Generator not only on image quality but also on whether the generated features align with the conditioned class. If the Generator's Conditional Mapping Network fails to translate the concatenated noise and class embedding into effective, class-specific styles early on, the Discriminator's Projection Term quickly identifies this lack of feature-to-class alignment, providing a strong, consistent penalty that the Generator cannot easily overcome, leading to the observed rapid decrease in D Loss and the spiking G Loss.
 
-**Path Length Regularization (λ=2.0):**
-- Encourages smooth W-space interpolation
-- Enables meaningful latent walks (see generated walks)
-- Lower value (2.0 vs 4.0) prioritizes image quality over smoothness
-
-### Mixed Precision Impact
-
-**Benefits observed:**
-- 1.4× training speedup (7.2 min/epoch vs ~10 min/epoch in FP32)
-- Enables batch size 4 within 8GB VRAM (FP32 limited to batch size 2)
-- No observable quality degradation
-
-**Tradeoffs:**
-- Requires gradient scaling (handled automatically by PyTorch AMP)
-- Occasional numerical instability in discriminator (mitigated by loss scaling)
-
-### Hyperparameter Sensitivity
-
-**Critical hyperparameters:**
-1. **LR ratio (G:D = 2:1)**: Essential for preventing D dominance
-2. **R1 penalty weight (γ=10.0)**: Too high (>20) causes training slowdown, too low (<5) causes instability
-3. **Batch size (4)**: Smaller batches (<4) increase noise, larger batches (>4) OOM on 8GB GPU
-
-**Less sensitive:**
-- Path length weight (λ): Range [1.0, 4.0] works well
-- Embedding dimension: [64, 256] all produce similar results
+Despite the significant disparity in losses, where the Discriminator (D) quickly overpowers the Generator (G), it's entirely possible for the overall training process to still yield realistic-looking images. This counter-intuitive result often occurs because the Generator learns to perfectly mimic a narrow subset of the real data distribution—a phenomenon known as mode collapse or partial mode collapse. The low-variance images it does produce may be visually perfect and thus challenging enough for the over-trained Discriminator to struggle with momentarily, allowing the model to appear successful based on visual output, even if the high G Loss indicates a severe failure in exploring the full diversity of the target dataset. The Generator has optimized for quality over diversity.
 
 ## Style Space and Plot Discussion
 
@@ -486,58 +457,13 @@ The intermediate latent space W demonstrates key properties:
 
 *Figure 8: t-SNE embeddings visualization*
 
-**Disentanglement:**
-- Different dimensions control distinct features (ventricle size, cortical thickness, intensity)
-- Class conditioning creates separable regions in W-space for AD vs NC
-- t-SNE visualization shows two distinct clusters (see `generated_samples/tsne_embeddings.png`)
+The provided t-SNE projections reveal successful class separation in the latent style space but highlight fidelity issues in the generated image feature space. Plots analyzing the Style Space (W) vectors show the Conditional Mapping Network effectively disentangles the AD and NC labels, creating two sharp, well-separated style clusters. Furthermore, the generated $W$ vectors perfectly mimic the distribution of real $W$ vectors, confirming that the generator's latent manifold is smooth, well-structured, and fully utilized, which is a key success of the StyleGAN architecture and its regularization (PL Loss).
 
-**Smoothness:**
-- Latent walks produce gradual transitions between samples (see `*_latent_walk.png`)
-- No sudden jumps or artifacts during interpolation
-- Path length regularization successfully enforces smooth manifold
+However, when examining the image feature space (likely the Discriminator's final features), the Generated samples (triangles) fail to replicate the crisp separation seen in the Real data clusters. Instead, the generated samples predominantly populate the ambiguous space between the distinct AD and NC clusters. This means the Generator struggles to synthesize the subtle, defining features necessary to produce "pure" examples of either class. Although the model can create realistic-looking images, the features of these images lie close to the decision boundary, indicating a lack of conditional fidelity and confirming that the Generator is failing to capture the unique, high-order discriminatory features of each medical condition.
 
-### Training Curves Analysis
+This discrepancy—perfect style separation but ambiguous image features—is likely a consequence of the Projection Discriminator overpowering the Generator, as noted in the loss analysis. The Discriminator's Projection Term quickly identifies that the Generator's output, while visually appealing, lacks the exact features required to align perfectly with the conditional label. The Generator, unable to overcome this high-dimensional penalty, opts for a safer, central manifold in the image space, producing images that are generally plausible but fail to commit fully to the strict, separating features of the target classes.
 
-The training summary plot (`conditional_training_summary.png`) reveals:
-
-1. **Generator Loss Curve**:
-   - Rapid decrease: Epochs 1-25 (learning basic structure)
-   - Gradual decrease: Epochs 25-75 (refining details)
-   - Plateau: Epochs 75-150 (convergence)
-
-2. **Discriminator Loss Curve**:
-   - Quick stabilization around 0.7-0.9 (healthy range)
-   - Minimal oscillation (indicates stable training)
-   - No upward trend (no discriminator collapse)
-
-3. **Regularization Losses**:
-   - R1 penalty: Decreases then stabilizes (discriminator gradients controlled)
-   - Path length: Converges to ~15-20 (optimal smoothness)
-
-### t-SNE Embedding Analysis
-
-t-SNE projection of W-space samples (100 per class) shows:
-
-- **Clear class separation**: AD and NC form distinct clusters
-- **Intra-class diversity**: Samples within each class spread across cluster (not collapsed)
-- **Smooth boundaries**: No sharp discontinuities between classes
-- **Interpretability**: Direction in latent space correlates with disease progression
-
-This confirms the projection discriminator successfully learned class-conditional features, and the mapping network produces disentangled representations.
-
-
-### Visual Quality Progression
-
-Comparing generated samples across epochs:
-
-| Epoch Range | Quality Description | Key Observations |
-|---|---|---|
-| 2-10 | Low quality, noisy | Basic shapes, no anatomical structure |
-| 25-50 | Medium quality | Clear brain outline, visible ventricles |
-| 75-100 | High quality | Anatomically plausible, class features emerge |
-| 125-150 | Highest quality | Fine details, consistent pathology |
-
-**Recommendation**: Epoch 100+ checkpoints suitable for data augmentation; earlier epochs useful for studying generator learning dynamics.
+The Conditional StyleGAN is highly effective at structuring its latent space based on class labels, but it fails to transfer this distinct conditional knowledge fully into the final image features. The model successfully learns the global structure of the style space but exhibits low conditional fidelity in the output domain, meaning the resulting images are generally realistic but are diagnostically ambiguous, limiting the model's utility for reliable conditional data synthesis.
 
 ## References
 
