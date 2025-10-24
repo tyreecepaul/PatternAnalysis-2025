@@ -11,6 +11,7 @@ from modules import ConditionalMappingNetwork as MappingNetwork
 from utils import get_w, get_noise, DEVICE, W_DIM, LOG_RESOLUTION, Z_DIM, CLASS_NAMES
 from dataset import get_dataloaders
 from torchvision import transforms
+from copy import deepcopy
 
 """
 predict.py
@@ -44,6 +45,13 @@ def load_checkpoint(checkpoint_path, device=DEVICE):
     mapping.load_state_dict(checkpoint['mapping_state'])
     if 'disc_state' in checkpoint:
         disc.load_state_dict(checkpoint['disc_state'])
+    
+    # Load EMA parameters if available (Official StyleGAN2 feature)
+    if 'gen_ema_shadow' in checkpoint:
+        print("  Loading EMA generator parameters...")
+        for name, param in gen.named_parameters():
+            if name in checkpoint['gen_ema_shadow']:
+                param.data.copy_(checkpoint['gen_ema_shadow'][name])
     
     gen.eval()
     mapping.eval()

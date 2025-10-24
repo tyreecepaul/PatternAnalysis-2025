@@ -15,30 +15,32 @@ Author: Tyreece Paul
 # Training Configuration
 DATASET = "ADNI/AD_NC/train"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-EPOCHS = 150 
+EPOCHS = 150  
 
 # Learning Configuration
 LEARNING_RATE = 0.002  
-BATCH_SIZE = 4  
+BATCH_SIZE = 8  # Increased from 4 for 2x faster training (256x256 fits easily on modern GPUs)  
 
 # Architecture Configuration
 LOG_RESOLUTION = 8  
 Z_DIM = 512
 W_DIM = 512
 
-# Regularization
-R1_GAMMA = 10.0  
-PL_WEIGHT = 2.0  
+# Regularization (Official StyleGAN2 approach)
+# Lower R1 gamma prevents discriminator from overpowering generator
+# Official StyleGAN2 uses 1.0-10.0 depending on dataset difficulty
+R1_GAMMA = 1.0  # Reduced from 10.0 for better G/D balance
+PL_WEIGHT = 2.0  # Path length regularization (standard value)  
 
 # Data Loading
-NUM_WORKERS = 4  
+NUM_WORKERS = 8  # Increased from 4 for faster data loading
 RANDOM_SEED = 42
 VAL_SPLIT = 0.1
 
 # Training Intervals
-SAVE_INTERVAL = 1
-VAL_INTERVAL = 10
-VAL_SAMPLES = 16
+SAVE_INTERVAL = 25
+VAL_INTERVAL = 1  
+VAL_SAMPLES = 8  
 
 CLASS_NAMES = ['AD', 'NC']  
 

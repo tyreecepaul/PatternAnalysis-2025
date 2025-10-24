@@ -10,7 +10,7 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
-from modules import Generator, PathLengthPenalty
+from modules import Generator, PathLengthPenalty, EMA
 from modules import ConditionalDiscriminator as Discriminator
 from dataset import get_dataloaders
 from utils import (
@@ -48,9 +48,13 @@ Outputs:
 D_REG_INTERVAL = 16
 G_REG_INTERVAL = 4
 
-# Balanced Learning Rates (fix for D overpowering G)
-D_LEARNING_RATE = LEARNING_RATE * 0.5  # Reduce discriminator LR
-G_LEARNING_RATE = LEARNING_RATE         # Keep generator LR
+# Balanced Learning Rates (Official StyleGAN2 approach)
+# Fix discriminator overpowering: D much slower, G:D ratio should be ~10:1
+D_LEARNING_RATE = LEARNING_RATE * 0.1   # 0.0002 - much lower for D
+G_LEARNING_RATE = LEARNING_RATE          # 0.002 - keep for G
+
+# Official StyleGAN2 uses 1:1 update ratio, not multiple G updates
+# Balance is achieved through LR and regularization, not update frequency
 
 print(f"Using device: {DEVICE}")
 print(f"CUDA available: {torch.cuda.is_available()}")
@@ -65,11 +69,14 @@ print("-" * 60)
 
 # Initialize models (Generator stays the same, Discriminator is conditional)
 # Note: mapping_network is defined and instantiated in `utils.mapping_network`.
-# We pass `mapping_network` parameters into the generator optimizer so the
+# `mapping_network` parameters passed into the generator optimizer so the
 # mapping network is trained jointly with the generator.
 gen = Generator(LOG_RESOLUTION, W_DIM).to(DEVICE)
 disc = Discriminator(LOG_RESOLUTION, num_classes=2).to(DEVICE)
 pl_penalty = PathLengthPenalty().to(DEVICE)
+
+# EMA Generator (Official StyleGAN2 feature for better evaluation)
+gen_ema = EMA(gen, decay=0.999)
 
 # Get the number of layers from the generator
 NUM_LAYERS = gen.num_layers
@@ -121,6 +128,7 @@ print(f"  • Non-saturating loss with R1 regularization")
 print(f"  • R1 gamma: {R1_GAMMA}, applied every {D_REG_INTERVAL} steps")
 print(f"  • Path length weight: {PL_WEIGHT}, applied every {G_REG_INTERVAL} steps")
 print(f"  • Generator LR: {G_LEARNING_RATE}, Discriminator LR: {D_LEARNING_RATE}")
+print(f"  • Official StyleGAN2: 1:1 G:D update ratio")
 print("=" * 60)
 
 global_step = 0
@@ -150,7 +158,20 @@ for epoch in range(1, EPOCHS + 1):
         disc.zero_grad()
         
         # Generate fake images with SAME class distribution as real batch
-        w = get_w_correct(batch_size, mapping_network, labels)
+        # Apply style mixing (official StyleGAN2 feature for better disentanglement)
+        if torch.rand(()).item() < 0.9:  # 90% of the time use style mixing
+            # Generate two different w vectors
+            w1 = get_w_correct(batch_size, mapping_network, labels)
+            w2 = get_w_correct(batch_size, mapping_network, labels)
+            # Random crossover point
+            crossover = torch.randint(1, NUM_LAYERS, ()).item()
+            # Mix styles: use w1 for lower layers, w2 for higher layers
+            w = w1.clone()
+            w[:, crossover:] = w2[:, crossover:]
+        else:
+            # Regular single style
+            w = get_w_correct(batch_size, mapping_network, labels)
+        
         noise = get_noise(batch_size)
         
         with torch.amp.autocast('cuda', enabled=USE_AMP):
@@ -231,6 +252,9 @@ for epoch in range(1, EPOCHS + 1):
         
         scaler_gen.step(opt_gen)
         scaler_gen.update()
+        
+        # Update EMA generator 
+        gen_ema.update()
 
         # Logging
         epoch_d_loss += d_loss.item()
@@ -261,27 +285,33 @@ for epoch in range(1, EPOCHS + 1):
     print(f"  R1: {avg_r1:.4f} | PL: {avg_pl:.4f}")
     print(f"  Class distribution - AD: {epoch_ad_count}, NC: {epoch_nc_count}")
 
-    # Generate samples from BOTH classes
-    if epoch % SAVE_INTERVAL == 0:
+    # Generate samples from BOTH classes (using EMA generator for better quality)
+    if epoch % VAL_INTERVAL == 0:
+        # Use EMA generator for evaluation 
+        gen_ema.apply_shadow()
         generate_examples(gen, mapping_network, epoch, n=VAL_SAMPLES)
         
         # Generate interpolation between classes
         if epoch % (SAVE_INTERVAL * 2) == 0:
             generate_interpolation(gen, mapping_network, epoch)
+        
+        # Restore training generator
+        gen_ema.restore()
     
     # Save checkpoints
-    if epoch % 25 == 0:
+    if epoch % SAVE_INTERVAL == 0:
         os.makedirs("checkpoints", exist_ok=True)
         torch.save({
             'epoch': epoch,
             'gen_state': gen.state_dict(),
+            'gen_ema_shadow': gen_ema.shadow,  # Save EMA parameters
             'disc_state': disc.state_dict(),
             'mapping_state': mapping_network.state_dict(),
             'opt_gen': opt_gen.state_dict(),
             'opt_disc': opt_disc.state_dict(),
             'class_names': CLASS_NAMES,
         }, f"checkpoints/conditional_stylegan2_epoch{epoch}.pth")
-        # The checkpoint includes optimizer states so training can be resumed
+        # The checkpoint includes optimizer states and EMA so training can be resumed
         # (useful if training is interrupted). Intentionally save every 25
         # epochs to balance disk usage and recovery granularity.
         print(f"  ✓ Saved checkpoint: conditional_stylegan2_epoch{epoch}.pth")
