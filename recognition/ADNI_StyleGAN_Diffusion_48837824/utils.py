@@ -18,19 +18,19 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 EPOCHS = 150  
 
 # Learning Configuration
-LEARNING_RATE = 0.002  
-BATCH_SIZE = 8  # Increased from 4 for 2x faster training (256x256 fits easily on modern GPUs)  
+LEARNING_RATE = 0.001  # Reduced from 0.002 - matches proven working config
+BATCH_SIZE = 16  # Balanced for 256×256 on RTX 4070 (32 was too large, causes OOM)
 
 # Architecture Configuration
 LOG_RESOLUTION = 8  
-Z_DIM = 512
-W_DIM = 512
+Z_DIM = 256  # Reduced from 512 - matches working config
+W_DIM = 256  # Reduced from 512 - matches working config
 
 # Regularization (Official StyleGAN2 approach)
 # Lower R1 gamma prevents discriminator from overpowering generator
 # Official StyleGAN2 uses 1.0-10.0 depending on dataset difficulty
-R1_GAMMA = 1.0  # Reduced from 10.0 for better G/D balance
-PL_WEIGHT = 2.0  # Path length regularization (standard value)  
+R1_GAMMA = 10.0  # WGAN-GP style regularization (lambda_gp = 10)
+PL_WEIGHT = 2.0  # Higher path length penalty reduces checkerboard artifacts  
 
 # Data Loading
 NUM_WORKERS = 8  # Increased from 4 for faster data loading
