@@ -45,8 +45,8 @@ Outputs:
 """
 
 # Training Configuration
-D_REG_INTERVAL = 16  # Apply R1 regularization every 16 discriminator updates
-G_REG_INTERVAL = 8   # Apply path length regularization every 8 generator updates (reduced frequency)
+D_REG_INTERVAL = 16
+G_REG_INTERVAL = 4
 
 # Balanced Learning Rates (Official StyleGAN2 approach)
 # Fix discriminator overpowering: D much slower, G:D ratio should be ~10:1

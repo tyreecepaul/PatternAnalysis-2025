@@ -287,7 +287,13 @@ class Generator(nn.Module):
             rgb = F.interpolate(rgb, scale_factor=2, mode='nearest') + self.to_rgbs[i+1](x, ws[:, 2*i+2])
 
         # Apply tanh activation to scale the final output to [-1, 1]
-        return torch.tanh(rgb)
+        rgb = torch.tanh(rgb)
+        
+        # Force grayscale output: average across RGB channels and replicate
+        # This ensures all 3 channels are identical (grayscale constraint for medical images)
+        rgb = rgb.mean(dim=1, keepdim=True).expand(-1, 3, -1, -1)
+        
+        return rgb
 
 
 class Conv2dWeightModulate(nn.Module):

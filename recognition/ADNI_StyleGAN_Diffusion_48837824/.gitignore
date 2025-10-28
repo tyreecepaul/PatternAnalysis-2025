@@ -20,3 +20,6 @@ build/
 
 .$graph.xml.bkp
 graph.xml
+
+ADNI.zip
+requirements.txt

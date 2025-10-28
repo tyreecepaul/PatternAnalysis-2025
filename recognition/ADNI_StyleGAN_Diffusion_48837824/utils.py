@@ -19,7 +19,7 @@ EPOCHS = 150
 
 # Learning Configuration
 LEARNING_RATE = 0.001  # Reduced from 0.002 - matches proven working config
-BATCH_SIZE = 16  # Balanced for 256×256 on RTX 4070 (32 was too large, causes OOM)
+BATCH_SIZE = 4  # Balanced for 256×256 on RTX 4070 (32 was too large, causes OOM)
 
 # Architecture Configuration
 LOG_RESOLUTION = 8  
