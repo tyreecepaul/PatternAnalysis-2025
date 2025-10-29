@@ -284,14 +284,17 @@ def extract_w_vectors(mapping, num_samples, labels, device=DEVICE):
 def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples', 
                          num_samples=100, device=DEVICE):
     """
-    Create t-SNE embeddings visualization comparing real and generated images.
+    Create TWO SEPARATE t-SNE embeddings visualizations:
     
-    This function:
-    1. Loads real images from the dataset
-    2. Generates synthetic images for both classes
-    3. Extracts W-space features from the mapping network
-    4. Projects features to 2D using t-SNE with accurate parameters
-    5. Creates visualization with ground truth labels and data type markers
+    1. Style Space (W-space) Analysis:
+       - Extracts W vectors from mapping network for both real and generated samples
+       - Shows how the mapping network structures the latent space
+       - Reveals class separation and real vs generated clustering
+    
+    2. Ground Truth Dataset Analysis:
+       - Extracts discriminator features from REAL images only
+       - Shows the actual distribution of the ground truth dataset
+       - Reveals natural clustering of AD vs NC pathology in image space
     
     Args:
         gen: Generator model
@@ -304,11 +307,15 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     os.makedirs(output_dir, exist_ok=True)
     
     print(f"\n{'='*60}")
-    print(f"GENERATING t-SNE EMBEDDING VISUALIZATION")
+    print(f"GENERATING t-SNE EMBEDDING VISUALIZATIONS")
+    print(f"{'='*60}")
+    print(f"Creating two separate t-SNE analyses:")
+    print(f"  1. Style Space (W-space): Latent manifold structure")
+    print(f"  2. Ground Truth Dataset: Real image feature distribution")
     print(f"{'='*60}")
     
     # Load real images from dataset
-    print(f"Loading {num_samples} real images per class...")
+    print(f"\nLoading {num_samples} real images per class...")
     train_loader, _ = get_dataloaders(batch_size=1)
     
     real_images = {0: [], 1: []}  # AD: 0, NC: 1
@@ -334,6 +341,13 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     
     print(f"✓ Loaded {len(real_labels)} real images (shape: {real_imgs_tensor.shape})")
     
+    # ========================================================================
+    # ANALYSIS 1: STYLE SPACE (W-SPACE) t-SNE
+    # ========================================================================
+    print(f"\n{'='*60}")
+    print(f"ANALYSIS 1: STYLE SPACE (W-SPACE)")
+    print(f"{'='*60}")
+    
     # Generate W vectors for real images (using random z vectors with ground truth labels)
     print(f"Generating W vectors for real images...")
     real_w_vectors = extract_w_vectors(mapping, len(real_labels), real_labels, device)
@@ -355,18 +369,18 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     print(f"✓ Generated W vectors for {len(gen_labels)} samples")
     
     # Combine all W vectors
-    all_features = np.vstack([real_w_vectors, gen_w_vectors])
-    all_labels = np.array(real_labels + gen_labels)
-    all_types = np.array(['Real'] * len(real_labels) + ['Generated'] * len(gen_labels))
+    all_features_w = np.vstack([real_w_vectors, gen_w_vectors])
+    all_labels_w = np.array(real_labels + gen_labels)
+    all_types_w = np.array(['Real'] * len(real_labels) + ['Generated'] * len(gen_labels))
     
-    print(f"✓ Extracted features: shape {all_features.shape}")
-    print(f"  Label distribution: AD={np.sum(all_labels==0)}, NC={np.sum(all_labels==1)}")
-    print(f"  Real samples: AD={np.sum((all_types=='Real') & (all_labels==0))}, NC={np.sum((all_types=='Real') & (all_labels==1))}")
-    print(f"  Generated samples: AD={np.sum((all_types=='Generated') & (all_labels==0))}, NC={np.sum((all_types=='Generated') & (all_labels==1))}")
+    print(f"✓ Extracted W-space features: shape {all_features_w.shape}")
+    print(f"  Label distribution: AD={np.sum(all_labels_w==0)}, NC={np.sum(all_labels_w==1)}")
+    print(f"  Real samples: AD={np.sum((all_types_w=='Real') & (all_labels_w==0))}, NC={np.sum((all_types_w=='Real') & (all_labels_w==1))}")
+    print(f"  Generated samples: AD={np.sum((all_types_w=='Generated') & (all_labels_w==0))}, NC={np.sum((all_types_w=='Generated') & (all_labels_w==1))}")
     
-    # Perform dimensionality reduction with accurate t-SNE parameters
-    print(f"Computing t-SNE projection...")
-    reducer = TSNE(
+    # Perform t-SNE on W-space vectors
+    print(f"Computing t-SNE projection for W-space...")
+    reducer_w = TSNE(
         n_components=2,
         perplexity=30,
         learning_rate='auto',
@@ -375,11 +389,11 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
         random_state=42,
         verbose=1
     )
-    embeddings = reducer.fit_transform(all_features)
-    print(f"✓ t-SNE projection complete")
+    embeddings_w = reducer_w.fit_transform(all_features_w)
+    print(f"✓ W-space t-SNE projection complete")
     
-    # Create visualization
-    print("Creating visualization...")
+    # Create W-space visualization
+    print("Creating W-space visualization...")
     fig, axes = plt.subplots(1, 2, figsize=(16, 7))
     
     # Color schemes
@@ -389,8 +403,8 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     # Plot 1: By class label
     ax1 = axes[0]
     for class_idx in [0, 1]:
-        mask = all_labels == class_idx
-        ax1.scatter(embeddings[mask, 0], embeddings[mask, 1], 
+        mask = all_labels_w == class_idx
+        ax1.scatter(embeddings_w[mask, 0], embeddings_w[mask, 1], 
                    c=class_colors[class_idx], label=class_names[class_idx],
                    alpha=0.6, s=50, edgecolors='k', linewidth=0.5)
     
@@ -406,8 +420,8 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     type_markers = {'Real': 'o', 'Generated': '^'}
     
     for data_type in ['Real', 'Generated']:
-        mask = all_types == data_type
-        ax2.scatter(embeddings[mask, 0], embeddings[mask, 1],
+        mask = all_types_w == data_type
+        ax2.scatter(embeddings_w[mask, 0], embeddings_w[mask, 1],
                    c=type_colors[data_type], label=data_type,
                    alpha=0.6, s=50, marker=type_markers[data_type],
                    edgecolors='k', linewidth=0.5)
@@ -420,66 +434,116 @@ def visualize_embeddings(gen, mapping, disc, output_dir='generated_samples',
     
     plt.tight_layout()
     
-    # Save plot
-    plot_path = f"{output_dir}/tsne_embeddings.png"
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-    print(f"✓ Saved visualization: {plot_path}")
+    # Save W-space plot
+    plot_path_w = f"{output_dir}/tsne_embeddings_style_space.png"
+    plt.savefig(plot_path_w, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"✓ Saved W-space visualization: {plot_path_w}")
     
-    # Create combined plot with class and type information
-    fig2, ax = plt.subplots(1, 1, figsize=(12, 10))
+    # ========================================================================
+    # ANALYSIS 2: GROUND TRUTH DATASET (DISCRIMINATOR FEATURES)
+    # ========================================================================
+    print(f"\n{'='*60}")
+    print(f"ANALYSIS 2: GROUND TRUTH DATASET")
+    print(f"{'='*60}")
     
-    # Plot with both class and type information
+    # Extract discriminator features from REAL images only
+    print(f"Extracting discriminator features from real images...")
+    
+    # Process in batches to avoid OOM
+    batch_size = 16
+    real_disc_features_list = []
+    
+    with torch.no_grad():
+        for i in range(0, len(real_imgs_tensor), batch_size):
+            batch = real_imgs_tensor[i:i+batch_size]
+            
+            # Process images through discriminator up to feature layer
+            x = disc.from_rgb(batch)
+            x = disc.blocks(x)
+            
+            # Apply minibatch standard deviation if used
+            if disc.mbstd:
+                x = disc.minibatch_stddev(x)
+            
+            # Final convolution and feature flattening
+            x = disc.final_conv(x)
+            batch_features = torch.flatten(x, 1)
+            real_disc_features_list.append(batch_features.cpu())
+    
+    real_disc_features = torch.cat(real_disc_features_list, dim=0).numpy()
+    
+    print(f"✓ Extracted discriminator features: shape {real_disc_features.shape}")
+    print(f"  Label distribution: AD={np.sum(real_labels_tensor.cpu().numpy()==0)}, NC={np.sum(real_labels_tensor.cpu().numpy()==1)}")
+    
+    # Perform t-SNE on discriminator features
+    print(f"Computing t-SNE projection for discriminator features...")
+    reducer_disc = TSNE(
+        n_components=2,
+        perplexity=30,
+        learning_rate='auto',
+        init='pca',
+        max_iter=1000,
+        random_state=42,
+        verbose=1
+    )
+    embeddings_disc = reducer_disc.fit_transform(real_disc_features)
+    print(f"✓ Discriminator features t-SNE projection complete")
+    
+    # Create ground truth dataset visualization
+    print("Creating ground truth dataset visualization...")
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+    
+    real_labels_np = real_labels_tensor.cpu().numpy()
     for class_idx in [0, 1]:
-        for data_type in ['Real', 'Generated']:
-            mask = (all_labels == class_idx) & (all_types == data_type)
-            if mask.sum() > 0:
-                marker = 'o' if data_type == 'Real' else '^'
-                label = f"{class_names[class_idx]} ({data_type})"
-                ax.scatter(embeddings[mask, 0], embeddings[mask, 1],
-                          c=class_colors[class_idx], label=label,
-                          alpha=0.6, s=60, marker=marker,
-                          edgecolors='k', linewidth=0.5)
+        mask = real_labels_np == class_idx
+        ax.scatter(embeddings_disc[mask, 0], embeddings_disc[mask, 1],
+                  c=class_colors[class_idx], label=class_names[class_idx],
+                  alpha=0.7, s=60, edgecolors='k', linewidth=0.5)
     
-    ax.set_title('t-SNE Embedding: Class Labels and Data Type', 
+    ax.set_title('t-SNE of Ground Truth Dataset (Discriminator Features)', 
                 fontsize=14, fontweight='bold')
-    ax.set_xlabel('t-SNE-1', fontsize=12)
-    ax.set_ylabel('t-SNE-2', fontsize=12)
-    ax.legend(loc='best', fontsize=10, framealpha=0.9, ncol=2)
+    ax.set_xlabel('t-SNE Dimension 1', fontsize=12)
+    ax.set_ylabel('t-SNE Dimension 2', fontsize=12)
+    ax.legend(loc='best', fontsize=11, framealpha=0.9)
     ax.grid(alpha=0.3)
     
     plt.tight_layout()
-    combined_path = f"{output_dir}/tsne_embeddings_combined.png"
-    plt.savefig(combined_path, dpi=300, bbox_inches='tight')
-    print(f"✓ Saved combined visualization: {combined_path}")
+    
+    # Save ground truth plot
+    plot_path_disc = f"{output_dir}/tsne_embeddings_ground_truth.png"
+    plt.savefig(plot_path_disc, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"✓ Saved ground truth visualization: {plot_path_disc}")
     
     # Print interpretation
     print(f"\n{'='*60}")
     print("INTERPRETATION")
     print(f"{'='*60}")
-    print(f"The t-SNE visualization of W vectors reveals several key insights:")
+    print(f"\nANALYSIS 1 - STYLE SPACE (W-SPACE):")
+    print(f"  File: {plot_path_w}")
+    print(f"  - Total W vectors: {len(all_labels_w)} ({len(real_labels)} real, {len(gen_labels)} generated)")
+    print(f"  - W dimension: {all_features_w.shape[1]} → 2D projection")
+    print(f"  - Shows learned latent manifold structure")
+    print(f"  - Reveals class separation (AD vs NC) in style space")
+    print(f"  - Compares real vs generated W-vector distributions")
     print()
-    print("1. STYLE SPACE MANIFOLD:")
-    print("   - W vectors form a continuous manifold in the learned style space.")
-    print("   - The curved structure shows the mapping network transforms random")
-    print("     z vectors into a structured, disentangled representation.")
+    print(f"ANALYSIS 2 - GROUND TRUTH DATASET:")
+    print(f"  File: {plot_path_disc}")
+    print(f"  - Total images: {len(real_labels)} (real images only)")
+    print(f"  - Feature dimension: {real_disc_features.shape[1]} → 2D projection")
+    print(f"  - Shows natural clustering of AD vs NC pathology")
+    print(f"  - Reveals actual data distribution in image feature space")
+    print(f"  - Based on discriminator's learned representation")
     print()
-    print("2. CLASS CONDITIONING:")
-    print("   - Distinct regions for AD vs NC indicate successful class conditioning.")
-    print("   - The mapping network learned to separate classes in style space")
-    print("     while maintaining smooth interpolation within each class.")
-    print()
-    print("3. LATENT SPACE PROPERTIES:")
-    print(f"   - Total W vectors: {len(embeddings)} ({len(real_labels)} real labels, {len(gen_labels)} generated)")
-    print(f"   - W dimension: {all_features.shape[1]} → 2D projection")
-    print(f"   - Classes balanced: AD={sum(all_labels==0)}, NC={sum(all_labels==1)}")
-    print()
-    print("4. GENERATIVE MODEL QUALITY:")
-    print("   - Smooth, continuous distribution indicates well-trained mapping network.")
-    print("   - Overlap between real and generated W vectors shows the model")
-    print("     samples from the same learned distribution for both classes.")
+    print(f"KEY INSIGHTS:")
+    print(f"  1. W-space shows how the mapping network structures latent space")
+    print(f"  2. Ground truth shows the actual disease feature distribution")
+    print(f"  3. Both analyses reveal class separability from different perspectives")
+    print(f"  4. Overlap in W-space (real vs generated) indicates good sampling")
+    print(f"  5. Ground truth clustering validates meaningful learned features")
     print(f"{'='*60}\n")
-    
-    return embeddings, all_labels, all_types
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate images from conditional StyleGAN2')

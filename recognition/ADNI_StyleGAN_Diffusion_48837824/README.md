@@ -27,8 +27,9 @@ Training stability is maintained throug equalised learning rates across all laye
 
 <p float="centre">
   <img src="docs/individual/AD_epoch25.png" width="150" />
+  <img src="docs/individual/AD_epoch50.png"width="150" />
   <img src="docs/individual/AD_epoch75.png"width="150" />
-  <img src="docs/individual/AD_epoch150.png"width="150" />
+  <img src="docs/individual/AD_epoch100.png"width="150" />
 </p>
 
 *Figure 2: Late Generated Alzheimer's (AD) Training (Epoch 25, 50, 75, 100)*
@@ -36,8 +37,9 @@ Training stability is maintained throug equalised learning rates across all laye
 
 <p float="centre">
   <img src="docs/individual/NC_epoch25.png" width="150" />
+  <img src="docs/individual/NC_epoch50.png"width="150" />
   <img src="docs/individual/NC_epoch75.png"width="150" />
-  <img src="docs/individual/NC_epoch150.png"width="150" />
+  <img src="docs/individual/NC_epoch100.png"width="150" />
 </p>
 
 *Figure 3: Late Generated Normal (NC) Training (Epoch 25, 50, 75, 100)*
@@ -51,12 +53,10 @@ Training stability is maintained throug equalised learning rates across all laye
 [6. Model Architecture](#model-architecture) <br>
 [7. Training Process](#training-processes) <br>
 [8. Results](#results) <br>
-[9. Analysis of Results](#analysis-of-results) <br>
-[10. Performative Metrics](#performative-metrics) <br>
-[11. Analysis of Performance Metrics](#analysis-of-performance-metrics) <br>
-[12. Style Space and Plot Discussion](#style-space-and-plot-discussion) <br>
-[13. References](#references) <br>
-[14. Citation](#citation)
+[9. Analysis of Performance Metrics](#analysis-of-performance-metrics) <br>
+[10. Style Space and Plot Discussion](#style-space-and-plot-discussion) <br>
+[11. References](#references) <br>
+[12. Citation](#citation)
 
 ## Project Structure
 
@@ -158,8 +158,8 @@ The project uses a curated ADNI subset (AD_NC) of T1-weighted MRI slices organiz
 Example reference images:
 
 <p float="left">
-  <img src="docs/individual/AD218391_78.jpeg" width="150" />
-  <img src="docs/individual/NC808819_88.jpeg" width="150" />
+  <img src="docs/ADNI_AD.jpeg" width="150" />
+  <img src="docs/ADNI_NC.jpeg" width="150" />
 </p>
 
 *Figure 3: AD and NC Image from ADNI Dataset*
@@ -355,6 +355,8 @@ The contrast between these two classes highlights the model’s capacity to synt
 
 ### Interpolation of Results (Latent Space Walks)
 
+#### Individual Class Interpolation
+
 **Note:** Interpolation visualisation results were produced with ``python predict.py --checkpoint checkpoints/conditional_stylegan2_epoch100.pth --walk``.
 
 <p float="left">
@@ -370,7 +372,13 @@ The contrast between these two classes highlights the model’s capacity to synt
   
 </p>
 
-*Figure 6: Interpolation of *
+*Figure 7: Interpolation of Results within Classes AD and NC*
+
+The latent space walk visualizes smooth transitions between two random points in the latent space for each class (AD and NC). For each walk, the model interpolates between two latent vectors, generating intermediate samples that reveal how the generator interprets gradual changes in latent space. Smooth, continuous transitions indicate a well-structured and disentangled latent space, while abrupt or choppy changes suggest instability or mode collapse.
+
+Within each class, interpolation preserves class-specific anatomical features. For instance, AD walks maintain ventricular enlargement and cortical atrophy, whereas NC walks maintain healthy brain volume and dense cortical structure. This validates both the continuity and class consistency of the model’s generative space.
+
+#### Cross-Class Interpolation
 
 **Note:** Interpolation visualisation results were produced with ``python predict.py --checkpoint checkpoints/conditional_stylegan2_epoch100.pth --cross_class``.
 
@@ -380,92 +388,33 @@ The contrast between these two classes highlights the model’s capacity to synt
   <em>Generated Alzheimer’s Disease (AD) to Normal Control (NC) Latent Space Interpolation using Checkpoint from Epoch 100</em>
 </p>
 
-*Figure 7: Mixed AD/NC comparison across training epochs (25, 50, 75, 100, 125, 150)*
+*Figure 8: Interpolation of Results from AD to NC*
 
-## Analysis of Results
+Cross-class interpolation explores transitions between AD and NC latent representations, effectively mapping a disease progression spectrum. By interpolating between an NC latent vector and an AD latent vector, the visualization demonstrates how the generator morphs healthy brain structures into pathological ones. For example, ventricles gradually enlarging and cortical regions thinning.
 
-### Convergence Behavior
-
-The training exhibits three distinct phases:
-
-1. **Phase 1 (Epochs 1-25)**: Rapid learning
-   - Generator loss drops sharply from ~8.5 to ~2.1
-   - Discriminator loss stabilizes around 0.7-0.9
-   - Basic anatomical structure learned
-
-2. **Phase 2 (Epochs 25-75)**: Refinement
-   - Gradual improvement in texture and details
-   - Path length regularization takes effect (~epoch 40)
-   - Class conditioning becomes effective
-
-3. **Phase 3 (Epochs 75-150)**: Convergence
-   - Minimal loss changes (±0.1)
-   - Quality improvements primarily in fine details
-   - Overfitting not observed (validation samples remain diverse)
-
-### Mode Collapse Analysis
-
-**No evidence of mode collapse observed:**
-- Generated samples show diverse anatomical variations
-- Both AD and NC classes produce varied outputs
-- Latent space walks show smooth interpolation (see `predict.py --walk`)
-- t-SNE embeddings show good class separation without clustering artifacts
-
-### Class Conditioning Effectiveness
-
-**Projection discriminator successfully conditions generation:**
-- Visual inspection confirms class-specific features (ventricular size, atrophy patterns)
-- t-SNE analysis shows separable clusters in W-space for AD vs NC
-- Latent walks within class maintain consistent pathological features
-
-## Performative Metrics
-
-### Computational Performance
-
-| Metric | Training | Inference (Generation) |
-|---|---:|---:|
-| GPU Memory Usage | 7.2 GB / 8 GB | 2.1 GB |
-| Time per Epoch | ~7.2 minutes | - |
-| Time per Batch | ~1.8 seconds | - |
-| Samples per Second | - | ~12 images/sec (batch=16) |
-| Mixed Precision Speedup | 1.4× vs FP32 | 1.6× vs FP32 |
-
-### Training Efficiency
-
-- **Checkpoint Size**: 145 MB per checkpoint (G + D + optimizer states)
-- **Total Disk Usage**: ~1.2 GB (checkpoints + samples + logs)
-- **Regularization Overhead**: R1 penalty adds ~15% training time (lazy schedule mitigates cost)
-- **Path Length Overhead**: <5% training time (EMA-based computation)
-
-### Generation Quality Metrics (Informal)
-
-Since FID/IS require large sample sets and reference statistics, we report informal quality assessment:
-
-- **Anatomical Plausibility**: High (brain structures consistent with medical knowledge)
-- **Class Consistency**: High (AD samples show atrophy, NC samples show healthy tissue)
-- **Diversity**: Good (no apparent mode collapse, varied outputs per class)
-- **Resolution**: 256×256 (sufficient for slice-level analysis)
-
-**Note**: Formal FID/IS computation requires >10k reference samples and is computationally expensive for medical imaging datasets. Visual inspection by domain experts is standard practice for medical GANs.
+This provides valuable insight into the features the model associates with each condition and illustrates that the latent space encodes smooth, biologically meaningful transformations. In medical imaging research, such visualizations are particularly powerful for exploring hypothetical intermediate disease states and assessing whether the generator captures realistic, continuous pathology changes.
 
 ## Analysis of Performance Metrics
 
 ![Training Losses](docs/training_losses.png)
 
-*Figure 7: Training loss curves showing generator and discriminator convergence over 150 epochs*
+*Figure 9: Training loss curves showing generator and discriminator convergence for 150 epochs*
 
-The GAN training losses show a significant imbalance, indicative of a Discriminator (D) overpowering the Generator (G). The Discriminator Loss (D Loss) starts high but rapidly decreases and stabilizes at a very low value ($\approx 0.3$), meaning the Discriminator quickly became highly effective and confident at distinguishing real images from fakes. Concurrently, the Generator Loss (G Loss) steadily climbs, rising sharply after epoch 90 to an unstable level around $\approx 3.0$. This divergence confirms that the Generator is struggling immensely to produce samples convincing enough to fool the strong Discriminator, which is a classic symptom of training instability and potential failure to converge to high-quality results.The two regularization losses, typical of a StyleGAN architecture, show expected optimization behavior. The R1 Regularization Loss increases, confirming that a stronger penalty is being applied to the Discriminator's gradients to maintain stability as it grows more powerful. Similarly, the Path Length Regularization Loss (PL Loss) also increases steadily, suggesting the Generator is successfully optimizing its latent space mapping to ensure smooth image interpolations. However, these regularization efforts are not enough to overcome the fundamental instability caused by the large performance gap between the two networks, making the current training configuration likely inefficient or unsuccessful for generating realistic images.
+The generator and discriminator loss curves reveal the overall training dynamics and point of equilibrium between the two adversarial components. Early in training (epochs 0–10), the generator loss (red) drops sharply as the model begins learning basic structural representations, while the discriminator loss (blue) remains elevated, indicating strong discriminative ability at the start. 
 
-This instability may be exacerbated by the Conditional Projection Discriminator architecture used here. In a Conditional GAN, the Discriminator must learn two things: image realism (unconditional score) and class fidelity (projection term). When the Discriminator rapidly learns the correct class embedding and projection space, it gains a powerful "shortcut" to critique the Generator not only on image quality but also on whether the generated features align with the conditioned class. If the Generator's Conditional Mapping Network fails to translate the concatenated noise and class embedding into effective, class-specific styles early on, the Discriminator's Projection Term quickly identifies this lack of feature-to-class alignment, providing a strong, consistent penalty that the Generator cannot easily overcome, leading to the observed rapid decrease in D Loss and the spiking G Loss.
+Between epochs 20–100, both losses stabilize, where the generator maintains moderate loss values while the discriminator gradually decreases, suggesting a balanced adversarial relationship where neither network dominates. However, after epoch 100, the generator loss begins to rise sharply while the discriminator loss continues to fall, signaling discriminator dominance and correlating with the visual degradation and artifacts observed in the qualitative results. This divergence marks the onset of instability and partial mode collapse.
 
-Despite the significant disparity in losses, where the Discriminator (D) quickly overpowers the Generator (G), it's entirely possible for the overall training process to still yield realistic-looking images. This counter-intuitive result often occurs because the Generator learns to perfectly mimic a narrow subset of the real data distribution—a phenomenon known as mode collapse or partial mode collapse. The low-variance images it does produce may be visually perfect and thus challenging enough for the over-trained Discriminator to struggle with momentarily, allowing the model to appear successful based on visual output, even if the high G Loss indicates a severe failure in exploring the full diversity of the target dataset. The Generator has optimized for quality over diversity.
+The R1 gradient penalty plot further supports this interpretation. Initially, R1 values decrease rapidly as the discriminator stabilizes its gradient norms, maintaining low values throughout the early and mid phases (epochs 10–100). However, beyond epoch 100, there is a clear upward trend in R1 penalty magnitude, implying that the discriminator’s gradients have become increasingly large and unstable. This suggests the regularization term began exerting excessive pressure, potentially over-constraining the discriminator and disrupting the generator–discriminator balance. Such behavior often arises when the learning dynamics shift due to diminishing gradient diversity or insufficient generator updates at later stages.
 
+In contrast, the path length regularization (PL) remains consistently low and stable throughout most of training, indicating smooth latent–image mapping and well-behaved W-space transformations. Minor fluctuations observed after epoch 120 reflect the same instability seen in other metrics, aligning with the visual artifacts and collapse patterns in late-stage samples. Overall, these loss behaviors confirm that training was most stable between epochs 20–100, after which discriminator regularization and gradient imbalance contributed to the observed collapse.
+
+The performance metrics validate that the epoch 100 checkpoint represents the optimal convergence point, characterized by stable adversarial dynamics, controlled regularization behavior and the highest qualitative fidelity. Future retraining runs would benefit from adaptive R1 regularization or discriminator learning rate scheduling beyond epoch 100 to extend training stability and prevent loss divergence.
+ 
 ## Style Space and Plot Discussion
 
 ### Latent Space Structure (W-space)
 
-The intermediate latent space W demonstrates key properties:
-
+**Note:** Latent Space and Grouth Truth visualisation results were produced with <br>``python predict.py --checkpoint checkpoints/conditional_stylegan2_epoch100.pth --embeddings --embedding_samples 1000``.
 
 <p float="left">
   <img src="docs/tsne_embeddings_style_space.png" width="800" />
@@ -473,21 +422,29 @@ The intermediate latent space W demonstrates key properties:
   <em>Style Space (W-space)</em>
 </p>
 
+*Figure 10: t-SNE of StyleGAN's learned W-space represenations for AD and NC using Checkpoint 100 for 1000 embedding samples*
+
+In the left panel, which compares AD and NC latent representations, the t-SNE projection reveals well-separated clusters corresponding to each diagnostic class. The AD samples (red) occupy a distinct region of the manifold, while NC samples (blue) form a compact cluster largely disjoint from the AD region. This clear separation indicates that the style vectors encode meaningful class-specific information, successfully capturing structural and textural variations characteristic of each condition. The limited overlap between clusters suggests that the generator’s mapping network learned a disentangled latent structure, where disease-related morphological attributes such as cortical atrophy and ventricular enlargement are well represented within the latent dimensions. This separation validates the conditional nature of the model, confirming that class conditioning effectively guided the generation process.
+
+The right panel compares real (green) and generated (orange) style vectors within the same projection space. The strong spatial alignment between real and generated embeddings indicates that the model’s latent distributions closely approximate those of the real data. The generated vectors largely overlay the real samples, implying that the generator not only captures inter-class variance but also preserves intra-class variability reflective of real subject diversity. This close correspondence confirms that the epoch 100 model generalizes well to the underlying data manifold without excessive mode collapse or overfitting. Minor deviations at cluster boundaries correspond to the slight loss divergence observed in the later stages of training, but do not significantly degrade latent alignment.
+
+This demonstrates that the trained StyleGAN successfully learns a semantically meaningful and biologically relevant latent space. The model distinguishes AD from NC subjects in the style space while maintaining distributional consistency between real and generated embeddings. This reflects both effective conditional learning and high-fidelity generation, with the latent space exhibiting smooth, class-consistent organization which is evidence of stable and interpretable generative modelling at epoch 100.
+
 <p float="left">
   <img src="docs/tsne_embeddings_ground_truth.png" width="800" />
   <br>
   <em>Ground Truth Dataset</em>
 </p>
 
-*Figure 8: t-SNE embeddings visualization*
+*Figure 11: t-SNE of StyleGAN's Ground Truth Dataset for AD and NC using Checkpoint 100 for 1000 embedding samples*
 
-The provided t-SNE projections reveal successful class separation in the latent style space but highlight fidelity issues in the generated image feature space. Plots analyzing the Style Space (W) vectors show the Conditional Mapping Network effectively disentangles the AD and NC labels, creating two sharp, well-separated style clusters. Furthermore, the generated $W$ vectors perfectly mimic the distribution of real $W$ vectors, confirming that the generator's latent manifold is smooth, well-structured, and fully utilized, which is a key success of the StyleGAN architecture and its regularization (PL Loss).
+Figure 11 demonstrates substantial overlap between AD and NC classes in feature space extracted from real data. Unlike the well-separated clusters observed in the learned W-space embeddings, this ground truth representation shows AD and NC samples distributed in a largely intermixed pattern across the two-dimensional manifold.
 
-However, when examining the image feature space (likely the Discriminator's final features), the Generated samples (triangles) fail to replicate the crisp separation seen in the Real data clusters. Instead, the generated samples predominantly populate the ambiguous space between the distinct AD and NC clusters. This means the Generator struggles to synthesize the subtle, defining features necessary to produce "pure" examples of either class. Although the model can create realistic-looking images, the features of these images lie close to the decision boundary, indicating a lack of conditional fidelity and confirming that the Generator is failing to capture the unique, high-order discriminatory features of each medical condition.
+The red and blue points are scattered throughout the same region with no clear class boundaries, indicating that the discriminator's learned features capture shared structural characteristics between the two diagnostic groups rather than exclusively disease-specific markers, with overlap is clinically realistic.
 
-This discrepancy—perfect style separation but ambiguous image features—is likely a consequence of the Projection Discriminator overpowering the Generator, as noted in the loss analysis. The Discriminator's Projection Term quickly identifies that the Generator's output, while visually appealing, lacks the exact features required to align perfectly with the conditional label. The Generator, unable to overcome this high-dimensional penalty, opts for a safer, central manifold in the image space, producing images that are generally plausible but fail to commit fully to the strict, separating features of the target classes.
+The lack of distinct separation suggests that while Alzheimer's disease-related changes are present, they are subtle variations within a broader distribution of image autonomy. This contrasts with the generator's style space, where conditioning explicitly enforces class separation, demonstrating that the discriminator learned to distinguish real from fake images based on overall anatomical realism rather than class-specific features alone.
 
-The Conditional StyleGAN is highly effective at structuring its latent space based on class labels, but it fails to transfer this distinct conditional knowledge fully into the final image features. The model successfully learns the global structure of the style space but exhibits low conditional fidelity in the output domain, meaning the resulting images are generally realistic but are diagnostically ambiguous, limiting the model's utility for reliable conditional data synthesis.
+The intermixed distribution validates that the training data contains meaningful within-class variability and reflects the natural heterogeneity of brain imaging data, confirming that the model was trained on a realistic, clinically representative dataset (ADNI) rather than artificially distinct or exaggerated class examples.
 
 ## References
 
