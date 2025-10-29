@@ -1,4 +1,4 @@
-# StyleGAN2 for ADNI (Alzheimer's Disease Neuroimaging Initiative)
+# Conditional StyleGAN2 for ADNI (Alzheimer's Disease Neuroimaging Initiative)
 
 **COMP3710 - Pattern Recognition and Analysis**
 
@@ -166,7 +166,7 @@ Example reference images:
 
 ## Data Setup
 
-### Data Preprocessing
+### Data PreprocessingConditional StyleGAN2 for ADNI (Alzheimer's Disease Neuroimaging Initiative)
 
 The preprocessing pipeline in `dataset.py` prepares grayscale ADNI MRI slices for training:
 
@@ -458,7 +458,7 @@ If you use this implementation in your research, please cite:
 
 ```bibtex
 @misc{stylegan2_adni_2025,
-  title={Conditional StyleGAN2 for AD vs NC Brain Image Generation},
+  title={Conditional StyleGAN2 for ADNI (Alzheimer's Disease Neuroimaging Initiative)},
   author={Tyreece Paul},
   year={2025},
   url={https://github.com/tyreecepaul/PatternAnalysis-2025}
