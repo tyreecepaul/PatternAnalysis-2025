@@ -194,6 +194,59 @@ def generate_latent_walk(gen, mapping, class_idx, steps=10, output_dir='generate
         print(f"✓ Saved latent walk: {walk_path}")
 
 
+def generate_cross_class_interpolation(gen, mapping, steps=10, output_dir='generated_samples', device=DEVICE):
+    """
+    Generate interpolation between AD and NC classes.
+    Shows the smooth transition from Alzheimer's Disease to Normal Control.
+    
+    Args:
+        gen: Generator model
+        mapping: Mapping network
+        steps: Number of interpolation steps (default: 10)
+        output_dir: Directory to save images
+        device: Device
+    """
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print(f"\nGenerating cross-class interpolation (AD → NC)...")
+    
+    with torch.no_grad():
+        # Use same random z for both classes to isolate class effect
+        z = torch.randn(1, Z_DIM, device=device)
+        noise = get_noise(1, device)
+        
+        # Generate W vectors for both classes with same z
+        ad_label = torch.tensor([0], dtype=torch.long, device=device)
+        nc_label = torch.tensor([1], dtype=torch.long, device=device)
+        
+        w_ad = mapping(z, ad_label)
+        w_nc = mapping(z, nc_label)
+        
+        # Expand w for all layers
+        num_blocks = LOG_RESOLUTION - 2
+        num_layers = 1 + 2 * num_blocks
+        w_ad = w_ad.unsqueeze(1).expand(-1, num_layers, -1)
+        w_nc = w_nc.unsqueeze(1).expand(-1, num_layers, -1)
+        
+        imgs = []
+        for alpha in torch.linspace(0, 1, steps):
+            # Interpolate in W space
+            w_interp = (1 - alpha) * w_ad + alpha * w_nc
+            
+            img = gen(w_interp, noise)
+            img = img * 0.5 + 0.5
+            img = torch.clamp(img, 0, 1)
+            imgs.append(img)
+        
+        imgs = torch.cat(imgs, dim=0)
+        
+        interp_path = f"{output_dir}/AD_to_NC_interpolation.png"
+        save_image(imgs, interp_path, nrow=steps, padding=2, normalize=False)
+        print(f"✓ Saved cross-class interpolation: {interp_path}")
+        print(f"  Shows smooth transition from AD (left) to NC (right)")
+
+
 def extract_w_vectors(mapping, num_samples, labels, device=DEVICE):
     """
     Generate W vectors (style space vectors) from the mapping network.
@@ -437,6 +490,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', type=str, default='generated_samples', help='Output directory')
     parser.add_argument('--mixed', action='store_true', help='Generate mixed AD/NC comparison')
     parser.add_argument('--walk', action='store_true', help='Generate latent space walk')
+    parser.add_argument('--cross_class', action='store_true', help='Generate interpolation between AD and NC classes')
     parser.add_argument('--embeddings', action='store_true', help='Generate t-SNE embedding visualization')
     parser.add_argument('--embedding_samples', type=int, default=100,
                        help='Number of samples per class for embeddings (default: 100)')
@@ -458,6 +512,10 @@ if __name__ == "__main__":
     
     elif args.mixed:
         generate_mixed_batch(gen, mapping, args.num_samples // 2, args.output_dir)
+    
+    elif args.cross_class:
+        # Generate cross-class interpolation (AD → NC)
+        generate_cross_class_interpolation(gen, mapping, steps=10, output_dir=args.output_dir)
     
     elif args.walk:
         if args.class_idx is None:

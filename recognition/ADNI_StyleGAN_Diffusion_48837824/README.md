@@ -19,11 +19,11 @@ Training stability is maintained throug equalised learning rates across all laye
 
 ## Visualisation
 <p float="centre">
-  <img src="docs/individual/epoch2.png" width="150" />
+  <img src="docs/individual/epoch1.png" width="150" />
   <img src="docs/individual/epoch10.png" width="150" />
 </p>
 
-*Figure 1: Early Generation Training (Epoch 2 and Epoch 10)*
+*Figure 1: Early Generation Training (Epoch 1 and Epoch 10)*
 
 <p float="centre">
   <img src="docs/individual/AD_epoch25.png" width="150" />
@@ -31,7 +31,7 @@ Training stability is maintained throug equalised learning rates across all laye
   <img src="docs/individual/AD_epoch150.png"width="150" />
 </p>
 
-*Figure 2: Late Generated Alzheimer's (AD) Training (Epoch 25, 75, 150)*
+*Figure 2: Late Generated Alzheimer's (AD) Training (Epoch 25, 50, 75, 100)*
 
 
 <p float="centre">
@@ -40,7 +40,7 @@ Training stability is maintained throug equalised learning rates across all laye
   <img src="docs/individual/NC_epoch150.png"width="150" />
 </p>
 
-*Figure 3: Late Generated Normal (NC) Training (Epoch 25, 75, 150)*
+*Figure 3: Late Generated Normal (NC) Training (Epoch 25, 50, 75, 100)*
 
 ## Table of Contents
 [1. Project Structure](#project-structure) <br>
@@ -174,13 +174,12 @@ The preprocessing pipeline in `dataset.py` prepares grayscale ADNI MRI slices fo
 train_transform = transforms.Compose([
     transforms.Resize((256, 256)),
     transforms.RandomHorizontalFlip(),
-    transforms.Grayscale(num_output_channels=3),  # Convert to 3-channel for generator
+    transforms.Grayscale(num_output_channels=3),  
     transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])  # Scale to [-1, 1]
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])  
 ])
 ```
 
-**Key points:**
 - **Resize to 256×256**: Matches generator output resolution
 - **RandomHorizontalFlip**: Augments data (medically valid for axial slices due to hemispheric symmetry)
 - **Grayscale to 3-channel**: Replicates single channel to RGB format expected by generator
@@ -202,9 +201,9 @@ The model is based on a StyleGAN-inspired architecture optimized for medical ima
 
 The mapping network transforms the input latent vector $z \in \mathbb{R}^{512}$ into an intermediate latent code $w \in \mathbb{R}^{512}$, producing a disentangled representation that improves feature control. This 8-layer MLP with learned class embeddings (embedding_dim=128) enables class-conditioned generation by concatenating the class embedding with the latent vector before mapping. The resulting style code $w$ modulates adaptive instance normalization (AdaIN) layers across the synthesis network to control structural and textural attributes during generation.
 
-### Synthesis Network (Generator)
+### Generator
 
-The synthesis network progressively constructs images from a learned constant (4×4×512), doubling resolution at each stage up to 256×256. Each synthesis block includes:
+The generator progressively constructs images from a learned constant (4×4×512), doubling resolution at each stage up to 256×256. Each synthesis block includes:
 
 - **Convolutional layers**: 3×3 convolutions with channel progression (512→256→128→64→32→16)
 - **Noise injection**: Stochastic variability at each resolution while maintaining anatomical fidelity
@@ -236,11 +235,13 @@ The discriminator mirrors the generator in reverse, applying progressive downsam
 
 ## Training Processes
 
+The model was trained with careful consideration of both computational constraints and stability requirements. Due to exessive rangpur queues and the cost of cloud services, hardware resources of an NVIDIA RTX 4070 (8GB VRAM) was utilized and the focus was on achieving a balance between performance, memory efficiency, and model convergence. The training configuration was inspired by NVIDIA StyleGAN2 recommendations, with adjusted hyperparameters to maintain consistent gradient flow and minimize visual artifacts. The generator and discriminator were optimized jointly to ensure neither component overpowered the other, while the use of mixed precision and lazy regularization allowed for faster and more stable training under limited resources. When training on cloud services or acess to resource intensive GPU's, parameters should be updated.
+
 ### Training Configuration
 
 The model was trained for 150 epochs with the following hyperparameters:
 
-| Hyperparameter | Value | Justification |
+| **Hyperparameter** | **Value** | **Justification** |
 |---|---:|---|
 | Batch Size | 4 | Memory constraints (RTX 4070 8GB), balances stability with GPU utilization |
 | Generator LR | 0.002 | Higher LR for generator (2:1 ratio with discriminator) |
@@ -250,113 +251,136 @@ The model was trained for 150 epochs with the following hyperparameters:
 | R1 Gradient Penalty (γ) | 10.0 | Stabilizes discriminator gradients (Mescheder et al., 2018) |
 | Path Length Regularization (λ) | 2.0 | Ensures smooth W-space for interpolation |
 
-### Training Procedure
+The model was trained using Adam optimizers (β₁ = 0.0, β₂ = 0.99) for both the generator and discriminator. Initialization followed Xavier/He for convolutional layers and orthogonal initialization for embeddings. The generator was optimized with the non-saturating logistic loss combined with path length regularization, while the discriminator used the logistic loss with R1 gradient penalty applied every 16 iterations (lazy regularization). Checkpoints were saved every 25 epochs, and sample generations were monitored at each epoch to visually track convergence and artifact suppression.
 
-1. **Initialization**: Xavier/He initialization for all layers, orthogonal initialization for embeddings
-2. **Optimization**: Adam optimizer (β₁=0.0, β₂=0.99) for both G and D
-3. **Loss Functions**:
-   - **Generator**: Non-saturating logistic loss with path length regularization
-   - **Discriminator**: Logistic loss + R1 gradient penalty (applied every 16 iterations)
-4. **Regularization Schedule**:
-   - R1 penalty: Applied with 10× lazy regularization (every 16 steps)
-   - Path length: Exponential moving average decay=0.01
-5. **Checkpointing**: Model states saved every 25 epochs (epochs 25, 50, 75, 100, 125, 150)
-6. **Monitoring**: Sample images generated every epoch for visual quality assessment
-
-### Training Stability
-
-Key techniques for stable training:
-- **Equalised Learning Rate**: All weights scaled by 1/√(fan_in) at runtime
-- **Gradient Clipping**: Implicit through mixed precision (prevents exploding gradients)
-- **Lazy Regularization**: R1 penalty computed every 16 steps (reduces computation)
-- **Learning Rate Scheduling**: Adaptive scheduling based on discriminator loss plateau
+Several stabilization strategies were integrated to prevent mode collapse and gradient explosion. Equalized Learning Rate ensured consistent weight scaling throughout training, while mixed precision implicitly provided gradient clipping benefits. Lazy regularization reduced computational overhead without sacrificing regularization strength, and adaptive learning rate scheduling helped maintain balance between generator and discriminator learning dynamics. Together, these techniques produced smoother training curves and improved visual coherence across generated samples.
 
 ## Results
 
-### Quantitative Metrics
+**Note:** This project was conducted across 5 trials, the following results are from the 5th trial.
 
-| Metric | Value | Description |
-|---|---:|---|
-| Final Generator Loss | 1.23 | Non-saturating logistic loss at epoch 150 |
-| Final Discriminator Loss | 0.68 | Real/fake discrimination loss at epoch 150 |
-| Path Length | 15.32 | Average W-space path length (target: ~15-20) |
-| Training Time | ~36 hours | 150 epochs on RTX 4070 (single GPU) |
-| Convergence Epoch | ~75 | Visual quality stabilizes around epoch 75 |
+### Quantitative Results
+
+<p float="left">
+  <img src="docs/training_statistics.png" width="800" />
+  <br>
+  <em>Figure 5: Generator Output Statistics over Training</em>
+</p>
+
+The generator output statistics indicate a stable and well-balanced training process over 150 epochs. The output range remains close to the full tanh interval (−1 to +1), showing that activations are healthy and the generator effectively utilizes its dynamic range without saturation or collapse.
+
+The mean output stabilizes around −0.75, reflecting a slight negative bias which suggests generated samples may lean toward darker intensities, though the consistency of this bias indicates controlled and predictable behavior. This matches the expectation given from the ADNI dataset. 
+
+Variance remains steady between 0.4 and 0.5, confirming sufficient diversity in the generator’s outputs and the absence of mode collapse. Meanwhile, the dynamic range fluctuates narrowly around 1.9, close to the ideal value of 2.0, demonstrating stable signal propagation throughout training.
+
+The generator maintained strong activation dynamics and output diversity, with only minor late epoch fluctuations likely due to regularisation effects or small batch variances.
 
 ### Qualitative Results
 
-#### Early Training (Epochs 1-10)
-- Blurry, low-frequency patterns, no anatomical structure
-- Basic brain shape emerges, significant noise and artifacts
+During the initial training phase (epochs 1–10), the generator produced highly blurry, low-frequency patterns lacking any discernible anatomical structure. Outputs primarily consisted of diffuse grayscale textures with minimal spatial coherence. Around the later stages of this phase, basic brain-like contours began to emerge, indicating that the model had started to learn coarse spatial features from the data. However, the images still contained substantial noise, checkerboard artifacts, and inconsistent intensity distributions, suggesting that both the generator and discriminator were still stabilizing their feature representations.
 
-#### Mid Training (Epochs 10-75)
-- **Epoch 25**: Clear brain structure, distinguishable ventricles and cortex
-- **Epoch 50**: Improved texture, reduced noise, better class separation
-- **Epoch 75**: High-quality synthesis, anatomically plausible structures
+In the mid-training phase (epochs 10–100), image quality improved substantially as the model began capturing finer anatomical details such as distinguishable ventricles, cortical boundaries, and general brain symmetry. Noise levels decreased, and textural realism improved as the generator refined its latent mapping and path length regularization enhanced feature consistency. By around epoch 80–100, the outputs were anatomically plausible and exhibited strong class separation, with well-defined structure and contrast which represents the most stable and visually coherent stage of the training cycle.
 
-#### Late Training (Epochs 100-150)
-- **Epoch 100**: Refined details, consistent anatomical features, minimal improvement over epoch 100 (convergence plateau)
-- **Epoch 150**: Final model, high visual fidelity, class-specific features visible
+During the late phase (epochs 100–150), the model began to collapse, producing images with severe artifacts, structural distortions, and degraded contrast. These instabilities correlate with the quantitative statistics, particularly the fluctuations observed in generator dynamic range and mean output values after epoch 120. It is likely that the R1 regularization pressure or discriminator dominance disrupted generator equilibrium, causing oscillations and partial mode collapse. The loss of high-frequency fidelity and increased visual artifacts align with these late-stage dynamics, confirming instability beyond the optimal convergence point.
 
-### Training Progression Visualization
+For this trial, **the epoch 100 checkpoint represented the best-performing generator and served as the primary model for qualitative evaluation**. Future runs would resume training from epoch 100 with adjusted regularization strength or learning rates to encourage recovery without collapse. Although it is possible the generator could have recovered past epoch 150, this configuration clearly identifies epoch 100 as the optimal trade-off between fidelity, stability, and anatomical realism.
+
+### Training Progression Visualization (Mixed)
+
+**Note:** Visualizations were produced with ``predict.py --mixed``, consisting of both AD and NC.
 
 <p float="left">
-  <img src="docs/epoch25_mixed_comparison_4x2.png" width="400" />
+  <img src="docs/mixed/mixed_epoch25.png" width="800" />
   <br>
-  <em>Epoch 25</em>
+  <em>Mixed Generation from Checkpoint Epoch 25</em>
 </p>
 
 <p float="left">
-  <img src="docs/epoch50_mixed_comparison_4x2.png" width="400" />
+  <img src="docs/mixed/mixed_epoch50.png" width="800" />
   <br>
-  <em>Epoch 50</em>
+  <em>Mixed Generation from Checkpoint Epoch 50</em>
 </p>
 
 <p float="left">
-  <img src="docs/epoch75_mixed_comparison_4x2.png" width="400" />
+  <img src="docs/mixed/mixed_epoch75.png" width="800" />
   <br>
-  <em>Epoch 75</em>
+  <em>Mixed Generation from Checkpoint Epoch 75</em>
 </p>
 
 <p float="left">
-  <img src="docs/epoch100_mixed_comparison_4x2.png" width="400" />
+  <img src="docs/mixed/mixed_epoch100.png" width="800" />
   <br>
-  <em>Epoch 100</em>
+  <em>Mixed Generation from Checkpoint Epoch 100 (Best Performing)</em>
 </p>
 
 <p float="left">
-  <img src="docs/epoch150_mixed_comparison_4x2.png" width="400" />
+  <img src="docs/mixed/mixed_epoch125.png" width="800" />
   <br>
-  <em>Epoch 150</em>
+  <em>Mixed Generation from Checkpoint Epoch 125</em>
 </p>
 
-*Figure 5: Mixed AD/NC comparison across training epochs (25, 50, 75, 100, 150)*
+<p float="left">
+  <img src="docs/mixed/mixed_epoch150.png" width="800" />
+  <br>
+  <em>Mixed Generation from Checkpoint Epoch 150</em>
+</p>
+
+*Figure 6: Mixed AD/NC comparison across training epochs (25, 50, 75, 100, 125, 150)*
 
 ### Class-Specific Generation
 
-**AD (Alzheimer's Disease) Samples:**
-- Visible ventricular enlargement (consistent with AD pathology)
-- Cortical atrophy patterns
-- Reduced tissue density in hippocampal regions
-
-**NC (Normal Control) Samples:**
-- Preserved brain volume
-- Healthy ventricle size
-- Dense cortical tissue
+**Note:** Visualizations were produced with ``predict.py --class_idx {0/1}``, with ``class_idx`` 0 and 1 representing AD and NC respectively. Was generated with checkpoint from Epoch 100.
 
 <p float="left">
-  <img src="docs/AD_grid_8samples.png" width="400" />
+  <img src="docs/conditional/AD_samples.png" width="800" />
   <br>
-  <em>AD Samples</em>
+  <em>Generated Alzheimer’s Disease (AD) Images using Checkpoint from Epoch 100</em>
 </p>
 
 <p float="left">
-  <img src="docs/NC_grid_8samples.png" width="400" />
+  <img src="docs/conditional/NC_samples.png" width="800" />
   <br>
-  <em>NC Samples</em>
+  <em>Generated Normal Control (NC) Images using Checkpoint from Epoch 100</em>
 </p>
 
-*Figure 6: Generated samples - AD and NC showing class-specific features*
+*Figure 6: Generated samples with AD and NC showing class-specific features*
+
+The primary element of the conditional generation is to produce class-specific generations where the model has a clear ability to capture distinctive structual patterns between Alzheimer’s Disease (AD) and Normal Control (NC) samples. 
+
+The AD-generated images consistently exhibited ventricular enlargement, a hallmark of AD pathology, along with visible cortical thinning and reduced tissue density in the hippocampal and temporal regions. These patterns suggest that the generator successfully internalized disease-related morphological features from the dataset.
+
+In contrast, the NC-generated samples displayed preserved brain volume, normal ventricle proportions, and dense cortical structures, indicative of healthy anatomical integrity. 
+
+The contrast between these two classes highlights the model’s capacity to synthesize condition-specific features that align with known neuroanatomical differences, reinforcing its potential for disease-aware generative modeling in medical imaging contexts.
+
+### Interpolation of Results (Latent Space Walks)
+
+**Note:** Interpolation visualisation results were produced with ``python predict.py --checkpoint checkpoints/conditional_stylegan2_epoch100.pth --walk``.
+
+<p float="left">
+  <img src="docs/conditional/AD_latent_walk.png" width="800" />
+  <br>
+  <em>Generated Alzheimer’s Disease (AD) Latent Space Interpolation using Checkpoint from Epoch 100</em>
+</p>
+
+<p float="left">
+  <img src="docs/conditional/NC_latent_walk.png" width="800" />
+  <br>
+  <em>Generated Normal Control (NC) Latent Space Interpolation using Checkpoint from Epoch 100</em>
+  
+</p>
+
+*Figure 6: Interpolation of *
+
+**Note:** Interpolation visualisation results were produced with ``python predict.py --checkpoint checkpoints/conditional_stylegan2_epoch100.pth --cross_class``.
+
+<p float="left">
+  <img src="docs/conditional/AD_to_NC_interpolation.png" width="800" />
+  <br>
+  <em>Generated Alzheimer’s Disease (AD) to Normal Control (NC) Latent Space Interpolation using Checkpoint from Epoch 100</em>
+</p>
+
+*Figure 7: Mixed AD/NC comparison across training epochs (25, 50, 75, 100, 125, 150)*
 
 ## Analysis of Results
 
