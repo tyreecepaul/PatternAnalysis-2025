@@ -419,7 +419,6 @@ The performance metrics validate that the epoch 100 checkpoint represents the op
 <p float="left">
   <img src="docs/tsne_embeddings_style_space.png" width="800" />
   <br>
-  <em>Style Space (W-space)</em>
 </p>
 
 *Figure 10: t-SNE of StyleGAN's learned W-space represenations for AD and NC using Checkpoint 100 for 1000 embedding samples*
@@ -433,7 +432,6 @@ This demonstrates that the trained StyleGAN successfully learns a semantically m
 <p float="left">
   <img src="docs/tsne_embeddings_ground_truth.png" width="800" />
   <br>
-  <em>Ground Truth Dataset</em>
 </p>
 
 *Figure 11: t-SNE of StyleGAN's Ground Truth Dataset for AD and NC using Checkpoint 100 for 1000 embedding samples*
