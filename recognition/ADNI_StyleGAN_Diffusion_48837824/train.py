@@ -314,7 +314,7 @@ for epoch in range(1, EPOCHS + 1):
         # The checkpoint includes optimizer states and EMA so training can be resumed
         # (useful if training is interrupted). Intentionally save every 25
         # epochs to balance disk usage and recovery granularity.
-        print(f"  ✓ Saved checkpoint: conditional_stylegan2_epoch{epoch}.pth")
+        print(f" Saved checkpoint: conditional_stylegan2_epoch{epoch}.pth")
 
 # Final plots
 plt.figure(figsize=(15, 5))
