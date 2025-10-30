@@ -151,7 +151,7 @@ def generate_examples(gen, mapping_network, epoch, n=16, device='cuda'):
             
             save_image(imgs_stretched, f"{folder}/epoch{epoch}_stretched.png",
                        nrow=4, padding=2, normalize=False)
-            print(f"  ✓ Applied contrast stretching (low variance detected)")
+            print(f"Applied contrast stretching (low variance detected)")
         else:
             imgs_stretched = imgs_standard
         
@@ -190,9 +190,9 @@ def generate_examples(gen, mapping_network, epoch, n=16, device='cuda'):
         if epoch > 0:
             update_stats_plot(epoch, img_min, img_max, img_mean, img_std, folder)
         
-        print(f"  ✓ Saved standard: epoch{epoch}_standard.png")
-        print(f"  ✓ Saved stretched: epoch{epoch}_stretched.png")
-        print(f"  ✓ Saved analysis: epoch{epoch}_analysis.png")
+        print(f"Saved standard: epoch{epoch}_standard.png")
+        print(f"Saved stretched: epoch{epoch}_stretched.png")
+        print(f"Saved analysis: epoch{epoch}_analysis.png")
         
     gen.train()
     mapping_network.train()
