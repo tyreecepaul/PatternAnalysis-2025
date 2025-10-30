@@ -57,7 +57,7 @@ def load_checkpoint(checkpoint_path, device=DEVICE):
     mapping.eval()
     disc.eval()
     
-    print(f"✓ Loaded model from epoch {checkpoint['epoch']}")
+    print(f"Loaded model from epoch {checkpoint['epoch']}")
     return gen, mapping, disc
 
 def generate_class_samples(gen, mapping, class_idx, num_samples=16, output_dir='generated_samples', device=DEVICE):
@@ -94,14 +94,14 @@ def generate_class_samples(gen, mapping, class_idx, num_samples=16, output_dir='
         # Save grid
         grid_path = f"{output_dir}/{class_name}_grid_{num_samples}samples.png"
         save_image(fake_imgs, grid_path, nrow=4, padding=2, normalize=False)
-        print(f"✓ Saved grid: {grid_path}")
+        print(f"Saved grid: {grid_path}")
         
         # Save individual images
         for i in range(num_samples):
             img_path = f"{output_dir}/{class_name}_sample_{i+1:03d}.png"
             save_image(fake_imgs[i], img_path, normalize=False)
         
-        print(f"✓ Saved {num_samples} individual images to {output_dir}/")
+        print(f"Saved {num_samples} individual images to {output_dir}/")
     
     return fake_imgs
 
@@ -143,10 +143,10 @@ def generate_mixed_batch(gen, mapping, num_per_class=8, output_dir='generated_sa
         
         grid_path = f"{output_dir}/mixed_comparison_{num_per_class}x2.png"
         save_image(combined, grid_path, nrow=num_per_class, padding=2, normalize=False)
-        print(f"✓ Saved comparison grid: {grid_path}")
-        print(f"✓ Saved {num_per_class * 2} individual images to {output_dir}/")
-        print(f"  (AD: AD_1.png to AD_{num_per_class}.png)")
-        print(f"  (NC: NC_1.png to NC_{num_per_class}.png)")
+        print(f"Saved comparison grid: {grid_path}")
+        print(f"Saved {num_per_class * 2} individual images to {output_dir}/")
+        print(f"(AD: AD_1.png to AD_{num_per_class}.png)")
+        print(f"(NC: NC_1.png to NC_{num_per_class}.png)")
 
 def generate_latent_walk(gen, mapping, class_idx, steps=10, output_dir='generated_samples', device=DEVICE):
     """
@@ -191,7 +191,7 @@ def generate_latent_walk(gen, mapping, class_idx, steps=10, output_dir='generate
         imgs = torch.cat(imgs, dim=0)
         walk_path = f"{output_dir}/{class_name}_latent_walk.png"
         save_image(imgs, walk_path, nrow=steps, padding=2, normalize=False)
-        print(f"✓ Saved latent walk: {walk_path}")
+        print(f"Saved latent walk: {walk_path}")
 
 
 def generate_cross_class_interpolation(gen, mapping, steps=10, output_dir='generated_samples', device=DEVICE):
@@ -243,7 +243,7 @@ def generate_cross_class_interpolation(gen, mapping, steps=10, output_dir='gener
         
         interp_path = f"{output_dir}/AD_to_NC_interpolation.png"
         save_image(imgs, interp_path, nrow=steps, padding=2, normalize=False)
-        print(f"✓ Saved cross-class interpolation: {interp_path}")
+        print(f"  Saved cross-class interpolation: {interp_path}")
         print(f"  Shows smooth transition from AD (left) to NC (right)")
 
 
